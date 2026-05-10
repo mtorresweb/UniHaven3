@@ -1,0 +1,357 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Auth.js required models ────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Core models ────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  UPC_STUDENT
+  GENERAL
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?   // Vercel Blob URL for avatar
+  password      String?   // null for OAuth users
+  role          Role      @default(GENERAL)
+  bio           String?   @db.Text
+  orcid         String?
+  suspended     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  projects      ProjectAuthor[]
+  comments      Comment[]
+  reactions     Reaction[]
+  notifications Notification[]
+  reports       Report[]
+  messages      Message[]
+  chatParticipants ChatParticipant[]
+  bookmarks     Bookmark[]
+  following     UserFollow[]   @relation("Follower")
+  followers     UserFollow[]   @relation("Following")
+  projectFollows ProjectFollow[]
+}
+
+// ─── Knowledge Areas ────────────────────────────────────────────────────────
+
+model KnowledgeArea {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  slug     String    @unique
+  projects Project[]
+}
+
+// ─── Projects ───────────────────────────────────────────────────────────────
+
+enum ProjectType {
+  THESIS
+  RESEARCH
+  CLASSROOM
+}
+
+enum ProjectStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  title       String
+  abstract    String        @db.Text
+  type        ProjectType
+  status      ProjectStatus @default(DRAFT)
+  year        Int
+  license     String        @default("CC BY 4.0")
+  githubRepo  String?       // owner/repo-name
+  coverImage  String?       // Vercel Blob URL
+  keywords    String[]
+  views       Int           @default(0)
+  downloads   Int           @default(0)
+  rejectionNote String?     @db.Text
+  areaId      String
+  area        KnowledgeArea @relation(fields: [areaId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  authors     ProjectAuthor[]
+  files       ProjectFile[]
+  versions    ProjectVersion[]
+  comments    Comment[]
+  reactions   Reaction[]
+  reports     Report[]
+  bookmarks   Bookmark[]
+  followers   ProjectFollow[]
+  chat        Chat?
+}
+
+model ProjectAuthor {
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([userId, projectId])
+}
+
+model ProjectFile {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name       String
+  githubPath String?  // path within the GitHub repo
+  blobUrl    String?  // Vercel Blob (only for non-GitHub assets)
+  mimeType   String
+  size       Int      // bytes
+  createdAt  DateTime @default(now())
+}
+
+model ProjectVersion {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  number    Int
+  commitSHA String?
+  changelog String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, number])
+}
+
+// ─── Comments ───────────────────────────────────────────────────────────────
+
+model Comment {
+  id        String    @id @default(cuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String    @db.Text
+  parentId  String?
+  parent    Comment?  @relation("Replies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("Replies")
+  hidden    Boolean   @default(false)
+  reactions Reaction[]
+  reports   Report[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// ─── Reactions ───────────────────────────────────────────────────────────────
+
+enum ReactionType {
+  LIKE
+  LOVE
+  CELEBRATE
+  THINKING
+}
+
+model Reaction {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      ReactionType
+  projectId String?
+  project   Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  commentId String?
+  comment   Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@unique([userId, projectId, type])
+  @@unique([userId, commentId, type])
+}
+
+// ─── Reports ─────────────────────────────────────────────────────────────────
+
+enum ReportCategory {
+  INAPPROPRIATE
+  PLAGIARISM
+  FALSE_INFO
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  DISMISSED
+  ACTIONED
+}
+
+model Report {
+  id          String         @id @default(cuid())
+  reporterId  String
+  reporter    User           @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  category    ReportCategory
+  description String?        @db.Text
+  status      ReportStatus   @default(PENDING)
+  projectId   String?
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  commentId   String?
+  comment     Comment?       @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+enum NotificationType {
+  COMMENT
+  REACTION
+  MENTION
+  PROJECT_APPROVED
+  PROJECT_REJECTED
+  PROJECT_NEEDS_REVISION
+  ANNOUNCEMENT
+  NEW_FOLLOWER
+  PROJECT_UPDATE
+  REPORT_ACTIONED
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  reference Json?            // context data (projectId, commentId, etc.)
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+// ─── Chat & Messages ─────────────────────────────────────────────────────────
+
+enum ChatType {
+  DM
+  PROJECT
+}
+
+model Chat {
+  id           String           @id @default(cuid())
+  type         ChatType
+  projectId    String?          @unique
+  project      Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  participants ChatParticipant[]
+  messages     Message[]
+  createdAt    DateTime         @default(now())
+}
+
+model ChatParticipant {
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatId String
+  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@id([userId, chatId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+// ─── Announcements ───────────────────────────────────────────────────────────
+
+enum AnnouncementPriority {
+  INFO
+  IMPORTANT
+  URGENT
+}
+
+model Announcement {
+  id        String               @id @default(cuid())
+  title     String
+  content   String               @db.Text
+  priority  AnnouncementPriority @default(INFO)
+  expiresAt DateTime?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+}
+
+// ─── Bookmarks ───────────────────────────────────────────────────────────────
+
+model Bookmark {
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  collection String   @default("default")
+  createdAt  DateTime @default(now())
+
+  @@id([userId, projectId])
+}
+
+// ─── Follows ─────────────────────────────────────────────────────────────────
+
+model UserFollow {
+  followerId String
+  follower   User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation("Following", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@id([followerId, userId])
+}
+
+model ProjectFollow {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, projectId])
+}
+
