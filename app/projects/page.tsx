@@ -139,7 +139,11 @@ async function ProjectsFeed({ searchParams }: { searchParams: SearchParams }) {
               )}
               <div className="absolute left-3 top-3">
                 <span
-                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${TYPE_COLORS[p.type] ?? ""}`}
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold shadow-sm backdrop-blur-sm ${
+                    p.coverImage
+                      ? "border-white/30 bg-black/50 text-white"
+                      : TYPE_COLORS[p.type] ?? ""
+                  }`}
                 >
                   {TYPE_LABELS[p.type]}
                 </span>
