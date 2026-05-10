@@ -83,10 +83,11 @@ model User {
 // ─── Knowledge Areas ────────────────────────────────────────────────────────
 
 model KnowledgeArea {
-  id       String    @id @default(cuid())
-  name     String    @unique
-  slug     String    @unique
-  projects Project[]
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?   @db.Text
+  projects    Project[]
 }
 
 // ─── Projects ───────────────────────────────────────────────────────────────

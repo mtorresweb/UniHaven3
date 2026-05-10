@@ -2000,7 +2000,8 @@ export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof User
 export const KnowledgeAreaScalarFieldEnum = {
   id: 'id',
   name: 'name',
-  slug: 'slug'
+  slug: 'slug',
+  description: 'description'
 } as const
 
 export type KnowledgeAreaScalarFieldEnum = (typeof KnowledgeAreaScalarFieldEnum)[keyof typeof KnowledgeAreaScalarFieldEnum]

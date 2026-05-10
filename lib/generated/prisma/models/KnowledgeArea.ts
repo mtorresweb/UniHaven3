@@ -28,18 +28,21 @@ export type KnowledgeAreaMinAggregateOutputType = {
   id: string | null
   name: string | null
   slug: string | null
+  description: string | null
 }
 
 export type KnowledgeAreaMaxAggregateOutputType = {
   id: string | null
   name: string | null
   slug: string | null
+  description: string | null
 }
 
 export type KnowledgeAreaCountAggregateOutputType = {
   id: number
   name: number
   slug: number
+  description: number
   _all: number
 }
 
@@ -48,18 +51,21 @@ export type KnowledgeAreaMinAggregateInputType = {
   id?: true
   name?: true
   slug?: true
+  description?: true
 }
 
 export type KnowledgeAreaMaxAggregateInputType = {
   id?: true
   name?: true
   slug?: true
+  description?: true
 }
 
 export type KnowledgeAreaCountAggregateInputType = {
   id?: true
   name?: true
   slug?: true
+  description?: true
   _all?: true
 }
 
@@ -139,6 +145,7 @@ export type KnowledgeAreaGroupByOutputType = {
   id: string
   name: string
   slug: string
+  description: string | null
   _count: KnowledgeAreaCountAggregateOutputType | null
   _min: KnowledgeAreaMinAggregateOutputType | null
   _max: KnowledgeAreaMaxAggregateOutputType | null
@@ -166,6 +173,7 @@ export type KnowledgeAreaWhereInput = {
   id?: Prisma.StringFilter<"KnowledgeArea"> | string
   name?: Prisma.StringFilter<"KnowledgeArea"> | string
   slug?: Prisma.StringFilter<"KnowledgeArea"> | string
+  description?: Prisma.StringNullableFilter<"KnowledgeArea"> | string | null
   projects?: Prisma.ProjectListRelationFilter
 }
 
@@ -173,6 +181,7 @@ export type KnowledgeAreaOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
+  description?: Prisma.SortOrderInput | Prisma.SortOrder
   projects?: Prisma.ProjectOrderByRelationAggregateInput
 }
 
@@ -183,6 +192,7 @@ export type KnowledgeAreaWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.KnowledgeAreaWhereInput | Prisma.KnowledgeAreaWhereInput[]
   OR?: Prisma.KnowledgeAreaWhereInput[]
   NOT?: Prisma.KnowledgeAreaWhereInput | Prisma.KnowledgeAreaWhereInput[]
+  description?: Prisma.StringNullableFilter<"KnowledgeArea"> | string | null
   projects?: Prisma.ProjectListRelationFilter
 }, "id" | "name" | "slug">
 
@@ -190,6 +200,7 @@ export type KnowledgeAreaOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
+  description?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.KnowledgeAreaCountOrderByAggregateInput
   _max?: Prisma.KnowledgeAreaMaxOrderByAggregateInput
   _min?: Prisma.KnowledgeAreaMinOrderByAggregateInput
@@ -202,12 +213,14 @@ export type KnowledgeAreaScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"KnowledgeArea"> | string
   name?: Prisma.StringWithAggregatesFilter<"KnowledgeArea"> | string
   slug?: Prisma.StringWithAggregatesFilter<"KnowledgeArea"> | string
+  description?: Prisma.StringNullableWithAggregatesFilter<"KnowledgeArea"> | string | null
 }
 
 export type KnowledgeAreaCreateInput = {
   id?: string
   name: string
   slug: string
+  description?: string | null
   projects?: Prisma.ProjectCreateNestedManyWithoutAreaInput
 }
 
@@ -215,6 +228,7 @@ export type KnowledgeAreaUncheckedCreateInput = {
   id?: string
   name: string
   slug: string
+  description?: string | null
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutAreaInput
 }
 
@@ -222,6 +236,7 @@ export type KnowledgeAreaUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projects?: Prisma.ProjectUpdateManyWithoutAreaNestedInput
 }
 
@@ -229,6 +244,7 @@ export type KnowledgeAreaUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutAreaNestedInput
 }
 
@@ -236,36 +252,42 @@ export type KnowledgeAreaCreateManyInput = {
   id?: string
   name: string
   slug: string
+  description?: string | null
 }
 
 export type KnowledgeAreaUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type KnowledgeAreaUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type KnowledgeAreaCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
+  description?: Prisma.SortOrder
 }
 
 export type KnowledgeAreaMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
+  description?: Prisma.SortOrder
 }
 
 export type KnowledgeAreaMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
+  description?: Prisma.SortOrder
 }
 
 export type KnowledgeAreaScalarRelationFilter = {
@@ -291,12 +313,14 @@ export type KnowledgeAreaCreateWithoutProjectsInput = {
   id?: string
   name: string
   slug: string
+  description?: string | null
 }
 
 export type KnowledgeAreaUncheckedCreateWithoutProjectsInput = {
   id?: string
   name: string
   slug: string
+  description?: string | null
 }
 
 export type KnowledgeAreaCreateOrConnectWithoutProjectsInput = {
@@ -319,12 +343,14 @@ export type KnowledgeAreaUpdateWithoutProjectsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type KnowledgeAreaUncheckedUpdateWithoutProjectsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   slug?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -362,6 +388,7 @@ export type KnowledgeAreaSelect<ExtArgs extends runtime.Types.Extensions.Interna
   id?: boolean
   name?: boolean
   slug?: boolean
+  description?: boolean
   projects?: boolean | Prisma.KnowledgeArea$projectsArgs<ExtArgs>
   _count?: boolean | Prisma.KnowledgeAreaCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["knowledgeArea"]>
@@ -370,21 +397,24 @@ export type KnowledgeAreaSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   id?: boolean
   name?: boolean
   slug?: boolean
+  description?: boolean
 }, ExtArgs["result"]["knowledgeArea"]>
 
 export type KnowledgeAreaSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
   slug?: boolean
+  description?: boolean
 }, ExtArgs["result"]["knowledgeArea"]>
 
 export type KnowledgeAreaSelectScalar = {
   id?: boolean
   name?: boolean
   slug?: boolean
+  description?: boolean
 }
 
-export type KnowledgeAreaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "slug", ExtArgs["result"]["knowledgeArea"]>
+export type KnowledgeAreaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "slug" | "description", ExtArgs["result"]["knowledgeArea"]>
 export type KnowledgeAreaInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   projects?: boolean | Prisma.KnowledgeArea$projectsArgs<ExtArgs>
   _count?: boolean | Prisma.KnowledgeAreaCountOutputTypeDefaultArgs<ExtArgs>
@@ -401,6 +431,7 @@ export type $KnowledgeAreaPayload<ExtArgs extends runtime.Types.Extensions.Inter
     id: string
     name: string
     slug: string
+    description: string | null
   }, ExtArgs["result"]["knowledgeArea"]>
   composites: {}
 }
@@ -828,6 +859,7 @@ export interface KnowledgeAreaFieldRefs {
   readonly id: Prisma.FieldRef<"KnowledgeArea", 'String'>
   readonly name: Prisma.FieldRef<"KnowledgeArea", 'String'>
   readonly slug: Prisma.FieldRef<"KnowledgeArea", 'String'>
+  readonly description: Prisma.FieldRef<"KnowledgeArea", 'String'>
 }
     
 
