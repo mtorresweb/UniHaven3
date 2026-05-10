@@ -136,13 +136,21 @@ export async function createProject(
     return { error: `Error subiendo archivos a GitHub: ${e instanceof Error ? e.message : String(e)}` };
   }
 
+  // ── GitHub: make repo public immediately ──────────────────────────────────
+  try {
+    const { makeRepoPublic } = await import("@/lib/github");
+    await makeRepoPublic(fullRepo);
+  } catch {
+    // Non-fatal — repo stays private, project still saved
+  }
+
   // ── Prisma: save project ──────────────────────────────────────────────────
   const project = await prisma.project.create({
     data: {
       title,
       abstract,
       type: type as "THESIS" | "RESEARCH" | "CLASSROOM",
-      status: "IN_REVIEW",
+      status: "APPROVED",
       year,
       license,
       keywords,
@@ -173,39 +181,34 @@ export async function createProject(
   redirect(`/projects/${project.id}?submitted=1`);
 }
 
-// ── Admin: approve project ─────────────────────────────────────────────────
-export async function approveProject(projectId: string) {
+// ── Report a project ───────────────────────────────────────────────────────
+export async function reportProject(
+  projectId: string,
+  category: "INAPPROPRIATE" | "PLAGIARISM" | "FALSE_INFO" | "OTHER",
+  description: string
+) {
   const session = await auth();
-  if (session?.user?.role !== Role.ADMIN) return { error: "No autorizado." };
+  if (!session?.user) return { error: "Debes iniciar sesión para reportar." };
 
-  const { makeRepoPublic } = await import("@/lib/github");
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
-  if (!project) return { error: "Proyecto no encontrado." };
-
-  if (project.githubRepo) await makeRepoPublic(project.githubRepo);
-
-  await prisma.project.update({
-    where: { id: projectId },
-    data: { status: "APPROVED" },
+  const existing = await prisma.report.findFirst({
+    where: { reporterId: session.user.id, projectId, status: "PENDING" },
   });
+  if (existing) return { error: "Ya enviaste un reporte para este proyecto." };
 
-  // Notify authors
-  const authors = await prisma.projectAuthor.findMany({ where: { projectId } });
-  await prisma.notification.createMany({
-    data: authors.map((a: { userId: string }) => ({
-      userId: a.userId,
-      type: "PROJECT_APPROVED" as const,
-      reference: { projectId, title: project.title },
-    })),
+  await prisma.report.create({
+    data: {
+      reporterId: session.user.id,
+      projectId,
+      category,
+      description,
+      status: "PENDING",
+    },
   });
-
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath("/admin");
   return { ok: true };
 }
 
-// ── Admin: reject project ──────────────────────────────────────────────────
-export async function rejectProject(projectId: string, note: string) {
+// ── Admin: remove (reject) reported project ────────────────────────────────
+export async function removeProject(projectId: string, note: string) {
   const session = await auth();
   if (session?.user?.role !== Role.ADMIN) return { error: "No autorizado." };
 
@@ -213,13 +216,21 @@ export async function rejectProject(projectId: string, note: string) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) return { error: "Proyecto no encontrado." };
 
-  if (project.githubRepo) await makeRepoPrivate(project.githubRepo);
+  // Make repo private so it's no longer publicly accessible
+  if (project.githubRepo) await makeRepoPrivate(project.githubRepo).catch(() => {});
 
   await prisma.project.update({
     where: { id: projectId },
     data: { status: "REJECTED", rejectionNote: note },
   });
 
+  // Mark related reports as actioned
+  await prisma.report.updateMany({
+    where: { projectId, status: "PENDING" },
+    data: { status: "ACTIONED" },
+  });
+
+  // Notify authors
   const authors = await prisma.projectAuthor.findMany({ where: { projectId } });
   await prisma.notification.createMany({
     data: authors.map((a: { userId: string }) => ({
@@ -230,6 +241,7 @@ export async function rejectProject(projectId: string, note: string) {
   });
 
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
   revalidatePath("/admin");
   return { ok: true };
 }

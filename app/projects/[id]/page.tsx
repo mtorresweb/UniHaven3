@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   Eye,
-  Download,
-  GitBranch,
   FileText,
   Calendar,
   Tag,
@@ -16,10 +14,12 @@ import {
   BookOpen,
   ExternalLink,
   CheckCircle,
-  Clock,
+  Flag,
+  GitBranch,
 } from "lucide-react";
 import { incrementProjectView } from "@/app/actions/projects";
 import { repoUrl } from "@/lib/github";
+import { ReportDialog } from "@/components/projects/report-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -27,29 +27,6 @@ const TYPE_LABELS: Record<string, string> = {
   THESIS: "Tesis de Grado",
   RESEARCH: "Investigación",
   CLASSROOM: "Proyecto de Aula",
-};
-
-const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; class: string }> = {
-  APPROVED: {
-    label: "Aprobado",
-    icon: <CheckCircle className="h-3.5 w-3.5" />,
-    class: "bg-primary/10 text-primary border-primary/20",
-  },
-  IN_REVIEW: {
-    label: "En revisión",
-    icon: <Clock className="h-3.5 w-3.5" />,
-    class: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-  },
-  DRAFT: {
-    label: "Borrador",
-    icon: <Clock className="h-3.5 w-3.5" />,
-    class: "bg-muted text-muted-foreground border-border",
-  },
-  REJECTED: {
-    label: "Rechazado",
-    icon: null,
-    class: "bg-destructive/10 text-destructive border-destructive/20",
-  },
 };
 
 function FileIcon({ mimeType }: { mimeType: string }) {
@@ -97,20 +74,27 @@ export default async function ProjectPage({
   incrementProjectView(id).catch(() => {});
 
   const submitted = sp.submitted === "1";
-  const statusCfg = STATUS_CONFIG[project.status] ?? STATUS_CONFIG.IN_REVIEW;
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
-      {/* Submitted banner */}
+      {/* Published banner */}
       {submitted && (
         <div className="mb-6 flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
           <CheckCircle className="mt-0.5 h-5 w-5 text-primary shrink-0" />
           <div>
-            <p className="font-semibold text-primary">¡Proyecto enviado con éxito!</p>
+            <p className="font-semibold text-primary">¡Proyecto publicado con éxito!</p>
             <p className="text-sm text-muted-foreground">
-              Tu trabajo está en revisión. Un administrador lo publicará pronto. Puedes ver su estado aquí.
+              Tu trabajo ya está disponible públicamente en UniHaven y en GitHub.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Removed banner */}
+      {project.status === "REJECTED" && (
+        <div className="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+          <p className="font-semibold">Este proyecto fue removido</p>
+          {project.rejectionNote && <p className="mt-1">{project.rejectionNote}</p>}
         </div>
       )}
 
@@ -120,12 +104,6 @@ export default async function ProjectPage({
           {/* Header */}
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusCfg.class}`}
-              >
-                {statusCfg.icon}
-                {statusCfg.label}
-              </span>
               <Badge variant="outline">{TYPE_LABELS[project.type]}</Badge>
               <Badge variant="outline">{project.area.name}</Badge>
             </div>
@@ -310,6 +288,11 @@ export default async function ProjectPage({
               Ver todos los proyectos
             </Button>
           </Link>
+
+          {/* Report */}
+          {session?.user && !isAuthor && (
+            <ReportDialog projectId={project.id} />
+          )}
         </aside>
       </div>
     </main>
