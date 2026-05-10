@@ -36,7 +36,7 @@ export async function createProjectRepo(
     name: repoName,
     description,
     private: true,
-    auto_init: false,
+    auto_init: true, // needed so Git Data API works (blobs require at least one commit)
     has_issues: false,
     has_wiki: false,
     has_projects: false,
