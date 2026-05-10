@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -101,6 +102,19 @@ export default async function ProjectPage({
       <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
         {/* ── Main content ──────────────────────────────────────────────── */}
         <div className="space-y-6">
+          {/* Cover image / gradient hero */}
+          <div className="relative h-56 w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary/20 to-primary/5">
+            {project.coverImage && (
+              <Image
+                src={project.coverImage}
+                alt={`Portada de ${project.title}`}
+                fill
+                className="object-cover"
+                priority
+              />
+            )}
+          </div>
+
           {/* Header */}
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
