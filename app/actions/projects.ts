@@ -144,7 +144,7 @@ export async function createProject(
     // Non-fatal — repo stays private, project still saved
   }
 
-  // ── Prisma: save project ──────────────────────────────────────────────────
+  // ── Prisma: save project (sequential inserts — HTTP mode has no transactions) ──
   const project = await prisma.project.create({
     data: {
       title,
@@ -156,24 +156,31 @@ export async function createProject(
       keywords,
       githubRepo: fullRepo,
       areaId,
-      authors: {
-        create: { userId: session.user.id },
-      },
-      files: {
-        create: fileRecords.map((fr) => ({
-          name: fr.name,
-          githubPath: fr.path,
-          mimeType: fr.mimeType,
-          size: fr.size,
-        })),
-      },
-      versions: {
-        create: {
-          number: 1,
-          commitSHA: commitSha,
-          changelog: "Versión inicial.",
-        },
-      },
+    },
+  });
+
+  await prisma.projectAuthor.create({
+    data: { projectId: project.id, userId: session.user.id },
+  });
+
+  if (fileRecords.length > 0) {
+    await prisma.projectFile.createMany({
+      data: fileRecords.map((fr) => ({
+        projectId: project.id,
+        name: fr.name,
+        githubPath: fr.path,
+        mimeType: fr.mimeType,
+        size: fr.size,
+      })),
+    });
+  }
+
+  await prisma.projectVersion.create({
+    data: {
+      projectId: project.id,
+      number: 1,
+      commitSHA: commitSha,
+      changelog: "Versión inicial.",
     },
   });
 
