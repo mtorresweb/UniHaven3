@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import { Role } from "@/app/generated/prisma/client";
+import { Role } from "@/lib/constants";
 
 const ADMIN_ROUTES = ["/admin"];
 const UPC_ONLY_ROUTES = ["/projects/new"];

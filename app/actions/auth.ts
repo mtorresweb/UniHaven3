@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { Role } from "@/app/generated/prisma/client";
+import { Role } from "@/lib/constants";
 
 const UPC_DOMAIN = "unicesar.edu.co";
 

@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Role } from "@/app/generated/prisma/client";
+import { Role } from "@/lib/constants";
 import {
   BookOpen,
   Home,

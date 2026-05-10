@@ -4,7 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
-import { Role } from "@/app/generated/prisma/client";
+import { Role } from "@/lib/constants";
 
 const UPC_DOMAIN = "unicesar.edu.co";
 
