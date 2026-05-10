@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useActionState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -136,7 +137,9 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-12">
-      <LoginForm />
+      <Suspense fallback={<div className="w-full max-w-md animate-pulse rounded-xl bg-muted h-96" />}>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }
