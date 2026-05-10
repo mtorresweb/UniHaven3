@@ -99,7 +99,7 @@ export default async function ProjectPage({
         </div>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
+      <div className="grid gap-10 lg:grid-cols-[1fr_280px]">
         {/* ── Main content ──────────────────────────────────────────────── */}
         <div className="space-y-6 min-w-0">
           {/* Cover image / gradient hero */}
@@ -231,7 +231,7 @@ export default async function ProjectPage({
         </div>
 
         {/* ── Sidebar ────────────────────────────────────────────────────── */}
-        <aside className="space-y-4">
+        <aside className="space-y-4 pt-2">
           {/* GitHub link */}
           {project.githubRepo && project.status === "APPROVED" && (
             <Link
