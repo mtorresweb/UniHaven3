@@ -1,4 +1,5 @@
-import { PrismaClient } from "@/app/generated/prisma/client";
+import "server-only";
+import { PrismaClient } from "@/lib/generated/prisma/client";
 import { PrismaNeonHttp } from "@prisma/adapter-neon";
 
 const createPrismaClient = () => {
