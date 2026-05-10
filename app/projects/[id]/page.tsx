@@ -121,7 +121,7 @@ export default async function ProjectPage({
               <Badge variant="outline">{TYPE_LABELS[project.type]}</Badge>
               <Badge variant="outline">{project.area.name}</Badge>
             </div>
-            <h1 className="text-2xl font-bold leading-tight tracking-tight">
+            <h1 className="text-2xl font-bold leading-tight tracking-tight break-words">
               {project.title}
             </h1>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -143,7 +143,7 @@ export default async function ProjectPage({
           {/* Abstract */}
           <section>
             <h2 className="mb-2 font-semibold">Resumen</h2>
-            <p className="leading-relaxed text-muted-foreground whitespace-pre-line">
+            <p className="leading-relaxed text-muted-foreground whitespace-pre-line break-words">
               {project.abstract}
             </p>
           </section>
