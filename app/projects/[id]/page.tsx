@@ -231,7 +231,7 @@ export default async function ProjectPage({
         </div>
 
         {/* ── Sidebar ────────────────────────────────────────────────────── */}
-        <aside className="space-y-4 pt-2">
+        <aside className="space-y-6 pt-2">
           {/* GitHub link */}
           {project.githubRepo && project.status === "APPROVED" && (
             <Link
