@@ -9,6 +9,7 @@ import {
   generateReadme,
   type GitHubFile,
 } from "@/lib/github";
+import { put } from "@vercel/blob";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Role } from "@/lib/constants";
@@ -72,6 +73,18 @@ export async function createProject(
   }
 
   if (Object.keys(fieldErrors).length) return { fieldErrors };
+
+  // ── Cover image → Vercel Blob ─────────────────────────────────────────────
+  const coverFile = formData.get("coverImage") as File | null;
+  let coverImageUrl: string | undefined;
+  if (coverFile && coverFile.size > 0) {
+    const ext = coverFile.name.split(".").pop() ?? "jpg";
+    const blob = await put(`covers/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`, coverFile, {
+      access: "public",
+      contentType: coverFile.type || "image/jpeg",
+    });
+    coverImageUrl = blob.url;
+  }
 
   // ── Validate area exists ──────────────────────────────────────────────────
   const area = await prisma.knowledgeArea.findUnique({ where: { id: areaId } });
@@ -156,6 +169,7 @@ export async function createProject(
       keywords,
       githubRepo: fullRepo,
       areaId,
+      ...(coverImageUrl ? { coverImage: coverImageUrl } : {}),
     },
   });
 

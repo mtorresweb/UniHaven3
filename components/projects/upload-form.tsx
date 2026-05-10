@@ -27,8 +27,10 @@ import {
   Loader2,
   AlertCircle,
   GitBranch,
+  ImageIcon,
 } from "lucide-react";
 import { cn, formatBytes } from "@/lib/utils";
+import Image from "next/image";
 
 type Area = { id: string; name: string };
 
@@ -98,6 +100,11 @@ export function UploadForm({ areas }: { areas: Area[] }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Persistent File[] across step changes (fileInputRef goes null when step 1 unmounts)
   const filesRef = useRef<File[]>([]);
+
+  // Cover image
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   // Keywords
   const [keywords, setKeywords] = useState<string[]>([]);
@@ -191,6 +198,22 @@ export function UploadForm({ areas }: { areas: Area[] }) {
       setKeywords((p) => [...p, kw]);
       setKwInput("");
     }
+  };
+
+  const handleCoverChange = (file: File | null) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setMetaErrors((e) => ({ ...e, cover: "La imagen no puede superar 5 MB." }));
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setMetaErrors((e) => ({ ...e, cover: "Solo se permiten imágenes (JPG, PNG, WebP)." }));
+      return;
+    }
+    setMetaErrors((e) => { const n = { ...e }; delete (n as Record<string, string>).cover; return n; });
+    setCoverFile(file);
+    const url = URL.createObjectURL(file);
+    setCoverPreview(url);
   };
 
   const totalSize = fileList.reduce((acc, f) => acc + f.size, 0);
@@ -321,6 +344,59 @@ export function UploadForm({ areas }: { areas: Area[] }) {
           </div>
 
           <div className="space-y-1.5">
+            <Label>Imagen de portada <span className="text-muted-foreground">(opcional)</span></Label>
+            <div
+              className={cn(
+                "relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-center transition-colors",
+                coverPreview ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/40"
+              )}
+              onClick={() => coverInputRef.current?.click()}
+            >
+              {coverPreview ? (
+                <div className="relative w-full">
+                  <Image
+                    src={coverPreview}
+                    alt="Portada"
+                    width={800}
+                    height={200}
+                    className="mx-auto h-36 w-full rounded-lg object-cover"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-2 rounded-full bg-background/80 p-1 shadow hover:bg-background"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCoverFile(null);
+                      setCoverPreview(null);
+                      if (coverInputRef.current) coverInputRef.current.value = "";
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                    <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Haz clic para seleccionar una imagen</p>
+                  <p className="text-xs text-muted-foreground/70">JPG, PNG, WebP — máx. 5 MB</p>
+                </>
+              )}
+            </div>
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="sr-only"
+              onChange={(e) => handleCoverChange(e.target.files?.[0] ?? null)}
+            />
+            {(metaErrors as Record<string, string>).cover && (
+              <p className="text-xs text-destructive">{(metaErrors as Record<string, string>).cover}</p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
             <Label>Palabras clave (máx. 10)</Label>
             <div className="flex gap-2">
               <Input
@@ -437,6 +513,21 @@ export function UploadForm({ areas }: { areas: Area[] }) {
           <input type="hidden" name="license" value={meta.license} />
           <input type="hidden" name="keywords" value={keywords.join(",")} />
 
+          {/* Cover image — synced from coverFile state */}
+          <input
+            type="file"
+            name="coverImage"
+            accept="image/*"
+            className="sr-only"
+            ref={(el) => {
+              if (el && coverFile) {
+                const dt = new DataTransfer();
+                dt.items.add(coverFile);
+                el.files = dt.files;
+              }
+            }}
+          />
+
           {/* File input — populated from the persistent filesRef */}
           <input
             type="file"
@@ -453,6 +544,15 @@ export function UploadForm({ areas }: { areas: Area[] }) {
           />
 
           <div className="rounded-xl border bg-muted/30 p-5 space-y-3 mb-6">
+            {coverPreview && (
+              <Image
+                src={coverPreview}
+                alt="Portada"
+                width={800}
+                height={128}
+                className="h-32 w-full rounded-lg object-cover mb-2"
+              />
+            )}
             <div className="flex items-center gap-2 text-sm text-primary font-semibold">
               <CheckCircle className="h-4 w-4" /> Listo para publicar
             </div>
