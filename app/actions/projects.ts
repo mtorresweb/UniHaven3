@@ -163,15 +163,16 @@ export async function createProject(
     data: { projectId: project.id, userId: session.user.id },
   });
 
-  if (fileRecords.length > 0) {
-    await prisma.projectFile.createMany({
-      data: fileRecords.map((fr) => ({
+  // createMany uses implicit transactions too — use individual creates instead
+  for (const fr of fileRecords) {
+    await prisma.projectFile.create({
+      data: {
         projectId: project.id,
         name: fr.name,
         githubPath: fr.path,
         mimeType: fr.mimeType,
         size: fr.size,
-      })),
+      },
     });
   }
 
@@ -231,21 +232,26 @@ export async function removeProject(projectId: string, note: string) {
     data: { status: "REJECTED", rejectionNote: note },
   });
 
-  // Mark related reports as actioned
-  await prisma.report.updateMany({
+  // Mark related reports as actioned (updateMany also needs raw SQL or loop)
+  const pendingReports = await prisma.report.findMany({
     where: { projectId, status: "PENDING" },
-    data: { status: "ACTIONED" },
+    select: { id: true },
   });
+  for (const r of pendingReports) {
+    await prisma.report.update({ where: { id: r.id }, data: { status: "ACTIONED" } });
+  }
 
   // Notify authors
   const authors = await prisma.projectAuthor.findMany({ where: { projectId } });
-  await prisma.notification.createMany({
-    data: authors.map((a: { userId: string }) => ({
-      userId: a.userId,
-      type: "PROJECT_REJECTED" as const,
-      reference: { projectId, title: project.title, note },
-    })),
-  });
+  for (const a of authors) {
+    await prisma.notification.create({
+      data: {
+        userId: a.userId,
+        type: "PROJECT_REJECTED" as const,
+        reference: { projectId, title: project.title, note },
+      },
+    });
+  }
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/projects");
