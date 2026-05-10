@@ -101,7 +101,7 @@ export default async function ProjectPage({
 
       <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
         {/* ── Main content ──────────────────────────────────────────────── */}
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           {/* Cover image / gradient hero */}
           <div className="relative h-56 w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary/20 to-primary/5">
             {project.coverImage && (
