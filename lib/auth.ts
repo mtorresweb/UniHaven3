@@ -5,37 +5,30 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { authConfig } from "@/auth.config";
 import { Role } from "@/lib/constants";
 
 const UPC_DOMAIN = "unicesar.edu.co";
 
-function isUpcEmail(email: string) {
-  return email.toLowerCase().endsWith(`@${UPC_DOMAIN}`);
-}
-
-function roleForEmail(email: string): Role {
-  return isUpcEmail(email) ? Role.UPC_STUDENT : Role.GENERAL;
-}
-
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adapter: PrismaAdapter(prisma as any),
   session: { strategy: "jwt" },
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       profile(profile) {
+        const role = profile.email?.endsWith(`@${UPC_DOMAIN}`)
+          ? Role.UPC_STUDENT
+          : Role.GENERAL;
         return {
           id: profile.sub,
           name: profile.name,
           email: profile.email,
           image: profile.picture,
-          role: roleForEmail(profile.email),
+          role,
         };
       },
     }),
@@ -51,8 +44,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { email: credentials.email as string },
         });
 
-        if (!user || !user.password) return null;
-        if (user.suspended) return null;
+        if (!user || !user.password || user.suspended) return null;
 
         const valid = await bcrypt.compare(
           credentials.password as string,
@@ -65,39 +57,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: user.name,
           email: user.email,
           image: user.image,
-          role: user.role,
+          role: user.role as Role,
         };
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.id = user.id;
-        token.role = (user as { role: Role }).role;
-      }
-      // Handle session update (e.g. role change)
-      if (trigger === "update" && session?.role) {
-        token.role = session.role;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as Role;
-      }
-      return session;
-    },
-    async signIn({ user, account }) {
-      // Block suspended users
-      if (!user.email) return false;
-      if (account?.provider === "google") {
-        // Google: any domain can register but UPC gets elevated role
-        // (role is already set in profile() above)
-        return true;
-      }
-      return true;
-    },
-  },
 });
+
