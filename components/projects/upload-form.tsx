@@ -96,6 +96,8 @@ export function UploadForm({ areas }: { areas: Area[] }) {
   const [fileList, setFileList] = useState<{ name: string; size: number }[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Persistent File[] across step changes (fileInputRef goes null when step 1 unmounts)
+  const filesRef = useRef<File[]>([]);
 
   // Keywords
   const [keywords, setKeywords] = useState<string[]>([]);
@@ -136,37 +138,40 @@ export function UploadForm({ areas }: { areas: Area[] }) {
   }
 
   // ── File management ───────────────────────────────────────────────────────
-  const syncDisplayList = useCallback((input: HTMLInputElement) => {
-    setFileList(Array.from(input.files ?? []).map((f) => ({ name: f.name, size: f.size })));
+  const syncDisplayList = useCallback((files: File[]) => {
+    setFileList(files.map((f) => ({ name: f.name, size: f.size })));
   }, []);
 
   const mergeFiles = useCallback(
     (incoming: FileList | null) => {
-      if (!incoming || !fileInputRef.current) return;
-      const dt = new DataTransfer();
-      const existing = new Set(
-        Array.from(fileInputRef.current.files ?? []).map((f) => f.name)
-      );
-      Array.from(fileInputRef.current.files ?? []).forEach((f) => dt.items.add(f));
+      if (!incoming) return;
+      const existing = new Set(filesRef.current.map((f) => f.name));
       Array.from(incoming).forEach((f) => {
-        if (!existing.has(f.name) && f.size > 0 && f.size <= MAX_FILE_SIZE)
-          dt.items.add(f);
+        if (!existing.has(f.name) && f.size > 0 && f.size <= MAX_FILE_SIZE) {
+          filesRef.current.push(f);
+          existing.add(f.name);
+        }
       });
-      fileInputRef.current.files = dt.files;
-      syncDisplayList(fileInputRef.current);
+      syncDisplayList(filesRef.current);
+      // Also sync the live DOM input if mounted
+      if (fileInputRef.current) {
+        const dt = new DataTransfer();
+        filesRef.current.forEach((f) => dt.items.add(f));
+        fileInputRef.current.files = dt.files;
+      }
     },
     [syncDisplayList]
   );
 
   const removeFile = useCallback(
     (name: string) => {
-      if (!fileInputRef.current) return;
-      const dt = new DataTransfer();
-      Array.from(fileInputRef.current.files ?? [])
-        .filter((f) => f.name !== name)
-        .forEach((f) => dt.items.add(f));
-      fileInputRef.current.files = dt.files;
-      syncDisplayList(fileInputRef.current);
+      filesRef.current = filesRef.current.filter((f) => f.name !== name);
+      syncDisplayList(filesRef.current);
+      if (fileInputRef.current) {
+        const dt = new DataTransfer();
+        filesRef.current.forEach((f) => dt.items.add(f));
+        fileInputRef.current.files = dt.files;
+      }
     },
     [syncDisplayList]
   );
@@ -432,16 +437,16 @@ export function UploadForm({ areas }: { areas: Area[] }) {
           <input type="hidden" name="license" value={meta.license} />
           <input type="hidden" name="keywords" value={keywords.join(",")} />
 
-          {/* File input — synced with ref files */}
+          {/* File input — populated from the persistent filesRef */}
           <input
             type="file"
             name="files"
             multiple
             className="sr-only"
             ref={(el) => {
-              if (el && fileInputRef.current?.files) {
+              if (el && filesRef.current.length > 0) {
                 const dt = new DataTransfer();
-                Array.from(fileInputRef.current.files).forEach((f) => dt.items.add(f));
+                filesRef.current.forEach((f) => dt.items.add(f));
                 el.files = dt.files;
               }
             }}
