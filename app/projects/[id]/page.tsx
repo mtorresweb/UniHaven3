@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { Role } from "@/lib/constants";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -20,6 +21,8 @@ import {
 } from "lucide-react";
 import { incrementProjectView } from "@/app/actions/projects";
 import { repoUrl } from "@/lib/github";
+import { CommentsSection, type CommentWithReplies } from "@/components/projects/comments-section";
+import { ProjectReactions } from "@/components/projects/project-reactions";
 import { ReportDialog } from "@/components/projects/report-dialog";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +31,44 @@ const TYPE_LABELS: Record<string, string> = {
   THESIS: "Tesis de Grado",
   RESEARCH: "Investigación",
   CLASSROOM: "Proyecto de Aula",
+};
+
+const REACTION_TYPES = ["LIKE", "LOVE", "CELEBRATE", "THINKING"] as const;
+const COMMENTS_PAGE_SIZE = 10;
+
+const commentSelect = {
+  id: true,
+  content: true,
+  hidden: true,
+  createdAt: true,
+  userId: true,
+  parentId: true,
+  user: {
+    select: {
+      name: true,
+      image: true,
+      email: true,
+    },
+  },
+  replies: {
+    where: { hidden: false },
+    orderBy: { createdAt: "asc" as const },
+    select: {
+      id: true,
+      content: true,
+      hidden: true,
+      createdAt: true,
+      userId: true,
+      parentId: true,
+      user: {
+        select: {
+          name: true,
+          image: true,
+          email: true,
+        },
+      },
+    },
+  },
 };
 
 function FileIcon({ mimeType }: { mimeType: string }) {
@@ -55,7 +96,11 @@ export default async function ProjectPage({
     where: { id },
     include: {
       area: true,
-      authors: { include: { user: { select: { id: true, name: true, image: true, email: true } } } },
+      authors: {
+        include: {
+          user: { select: { id: true, name: true, image: true, email: true } },
+        },
+      },
       files: { orderBy: { createdAt: "asc" } },
       versions: { orderBy: { number: "desc" } },
       _count: { select: { comments: true, reactions: true } },
@@ -66,13 +111,55 @@ export default async function ProjectPage({
 
   // Access control: non-approved projects are only visible to authors and admins
   const isAuthor = project.authors.some((a) => a.userId === session?.user?.id);
-  const isAdmin = session?.user?.role === "ADMIN";
+  const isAdmin = session?.user?.role === Role.ADMIN;
   if (project.status !== "APPROVED" && !isAuthor && !isAdmin) {
     notFound();
   }
 
   // Increment view count (fire and forget)
   incrementProjectView(id).catch(() => {});
+
+  const [reactionGroups, userReactions, initialComments, totalComments] = await Promise.all([
+    prisma.reaction.groupBy({
+      by: ["type"],
+      where: { projectId: id },
+      _count: { _all: true },
+    }),
+    session?.user?.id
+      ? prisma.reaction.findMany({
+          where: { projectId: id, userId: session.user.id },
+          select: { type: true },
+        })
+      : Promise.resolve([]),
+    prisma.comment.findMany({
+      where: {
+        projectId: id,
+        parentId: null,
+        hidden: false,
+      },
+      orderBy: { createdAt: "desc" },
+      take: COMMENTS_PAGE_SIZE,
+      select: commentSelect,
+    }),
+    prisma.comment.count({
+      where: {
+        projectId: id,
+        parentId: null,
+        hidden: false,
+      },
+    }),
+  ]);
+
+  const userReactionSet = new Set(userReactions.map((reaction) => reaction.type));
+  const reactionCountByType = Object.fromEntries(
+    reactionGroups.map((reaction) => [reaction.type, reaction._count._all])
+  ) as Partial<Record<(typeof REACTION_TYPES)[number], number>>;
+
+  const projectReactions = REACTION_TYPES.map((type) => ({
+    type,
+    count: reactionCountByType[type] ?? 0,
+    active: userReactionSet.has(type),
+  }));
 
   const submitted = sp.submitted === "1";
 
@@ -83,9 +170,12 @@ export default async function ProjectPage({
         <div className="mb-6 flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
           <CheckCircle className="mt-0.5 h-5 w-5 text-primary shrink-0" />
           <div>
-            <p className="font-semibold text-primary">¡Proyecto publicado con éxito!</p>
+            <p className="font-semibold text-primary">
+              ¡Proyecto publicado con éxito!
+            </p>
             <p className="text-sm text-muted-foreground">
-              Tu trabajo ya está disponible públicamente en UniHaven y en GitHub.
+              Tu trabajo ya está disponible públicamente en UniHaven y en
+              GitHub.
             </p>
           </div>
         </div>
@@ -95,7 +185,9 @@ export default async function ProjectPage({
       {project.status === "REJECTED" && (
         <div className="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
           <p className="font-semibold">Este proyecto fue removido</p>
-          {project.rejectionNote && <p className="mt-1">{project.rejectionNote}</p>}
+          {project.rejectionNote && (
+            <p className="mt-1">{project.rejectionNote}</p>
+          )}
         </div>
       )}
 
@@ -127,7 +219,9 @@ export default async function ProjectPage({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <User className="h-3.5 w-3.5" />
-                {project.authors.map((a) => a.user.name ?? a.user.email).join(", ")}
+                {project.authors
+                  .map((a) => a.user.name ?? a.user.email)
+                  .join(", ")}
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" /> {project.year}
@@ -163,6 +257,12 @@ export default async function ProjectPage({
               </div>
             </section>
           )}
+
+          <ProjectReactions
+            projectId={project.id}
+            reactions={projectReactions}
+            isLoggedIn={Boolean(session?.user)}
+          />
 
           {/* Files */}
           {project.files.length > 0 && (
@@ -213,7 +313,9 @@ export default async function ProjectPage({
                       v{v.number}
                     </Badge>
                     <div className="min-w-0 flex-1">
-                      <p className="text-muted-foreground">{v.changelog ?? "Versión inicial."}</p>
+                      <p className="text-muted-foreground">
+                        {v.changelog ?? "Versión inicial."}
+                      </p>
                       {v.commitSHA && (
                         <p className="mt-0.5 font-mono text-xs text-muted-foreground/60">
                           {v.commitSHA.slice(0, 7)}
@@ -228,6 +330,16 @@ export default async function ProjectPage({
               </div>
             </section>
           )}
+
+          <Separator />
+
+          <CommentsSection
+            projectId={project.id}
+            initialComments={initialComments as CommentWithReplies[]}
+            currentUserId={session?.user?.id}
+            isAdmin={isAdmin}
+            totalComments={totalComments}
+          />
         </div>
 
         {/* ── Sidebar ────────────────────────────────────────────────────── */}
@@ -239,7 +351,7 @@ export default async function ProjectPage({
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Button className="w-full gap-2">
+              <Button className="w-full gap-2 mb-4">
                 <GitBranch className="h-4 w-4" />
                 Ver en GitHub
                 <ExternalLink className="h-3.5 w-3.5 opacity-70" />
@@ -253,27 +365,39 @@ export default async function ProjectPage({
             <div className="space-y-2 text-muted-foreground">
               <div className="flex justify-between">
                 <span>Tipo</span>
-                <span className="font-medium text-foreground">{TYPE_LABELS[project.type]}</span>
+                <span className="font-medium text-foreground">
+                  {TYPE_LABELS[project.type]}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Área</span>
-                <span className="font-medium text-foreground text-right max-w-[140px] leading-tight">{project.area.name}</span>
+                <span className="font-medium text-foreground text-right max-w-[140px] leading-tight">
+                  {project.area.name}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Año</span>
-                <span className="font-medium text-foreground">{project.year}</span>
+                <span className="font-medium text-foreground">
+                  {project.year}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Licencia</span>
-                <span className="font-medium text-foreground">{project.license}</span>
+                <span className="font-medium text-foreground">
+                  {project.license}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Archivos</span>
-                <span className="font-medium text-foreground">{project.files.length}</span>
+                <span className="font-medium text-foreground">
+                  {project.files.length}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Comentarios</span>
-                <span className="font-medium text-foreground">{project._count.comments}</span>
+                <span className="font-medium text-foreground">
+                  {project._count.comments}
+                </span>
               </div>
             </div>
           </div>
