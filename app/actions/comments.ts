@@ -106,20 +106,25 @@ export async function addComment(
     }
   }
 
-  const createdComment = await prisma.comment.create({
+  const created = await prisma.comment.create({
     data: {
       projectId,
       userId: session.user.id,
       content: trimmedContent,
       ...(parentId ? { parentId } : {}),
     },
+  });
+
+  // Fetch with relations separately (HTTP mode can't do create + nested select)
+  const createdComment = await prisma.comment.findUnique({
+    where: { id: created.id },
     select: commentSelect,
   });
 
   revalidatePath(`/projects/${projectId}`);
 
   return {
-    comment: createdComment,
+    comment: createdComment ?? undefined,
   };
 }
 
