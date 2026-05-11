@@ -270,6 +270,7 @@ export async function removeProject(projectId: string, note: string) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/projects");
   revalidatePath("/admin");
+  revalidatePath("/admin/projects");
   return { ok: true };
 }
 
