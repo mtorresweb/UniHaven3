@@ -396,7 +396,7 @@ export default async function ProjectPage({
               <div className="flex justify-between">
                 <span>Comentarios</span>
                 <span className="font-medium text-foreground">
-                  {project._count.comments}
+                  {totalComments}
                 </span>
               </div>
             </div>

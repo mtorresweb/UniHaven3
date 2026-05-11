@@ -1,9 +1,10 @@
+import React from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Role } from "@/lib/constants";
 import { AdminNav } from "@/components/admin/admin-nav";
 
-export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
 
   if (!session?.user || session.user.role !== Role.ADMIN) {
