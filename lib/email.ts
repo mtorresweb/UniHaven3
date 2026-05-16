@@ -1,14 +1,20 @@
 import "server-only";
 
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS, // App Password de Gmail
+  },
+});
 
 export async function sendVerificationEmail(to: string, name: string, token: string) {
   const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}`;
 
-  await resend.emails.send({
-    from: process.env.RESEND_FROM ?? "UniHaven <no-reply@unihaven.com>",
+  await transporter.sendMail({
+    from: `UniHaven <${process.env.SMTP_USER}>`,
     to,
     subject: "Confirma tu cuenta en UniHaven",
     html: `
