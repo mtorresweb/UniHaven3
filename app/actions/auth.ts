@@ -3,10 +3,8 @@
 import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth";
+import { sendVerificationEmail } from "@/lib/email";
 import prisma from "@/lib/prisma";
-import { Role } from "@/lib/constants";
-
-const UPC_DOMAIN = "unicesar.edu.co";
 
 export async function loginAction(formData: FormData) {
   const email = formData.get("email") as string;
@@ -36,23 +34,22 @@ export async function registerAction(formData: FormData) {
     return { error: "La contraseña debe tener al menos 8 caracteres." };
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
     return { error: "Ya existe una cuenta con este email." };
   }
 
   const hashed = await bcrypt.hash(password, 12);
-  const role = email.endsWith(`@${UPC_DOMAIN}`) ? Role.UPC_STUDENT : Role.GENERAL;
+  const token = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  await prisma.user.create({
-    data: { name, email, password: hashed, role },
+  await prisma.pendingRegistration.deleteMany({ where: { email } });
+
+  await prisma.pendingRegistration.create({
+    data: { email, name, password: hashed, token, expiresAt },
   });
 
-  // Auto-login after register
-  try {
-    await signIn("credentials", { email, password, redirect: false });
-    return { success: true };
-  } catch {
-    return { success: true, redirect: "/login" };
-  }
+  await sendVerificationEmail(email, name, token);
+
+  return { success: true, pending: true, email };
 }

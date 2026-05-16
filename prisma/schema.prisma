@@ -80,6 +80,16 @@ model User {
   projectFollows ProjectFollow[]
 }
 
+model PendingRegistration {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String   // bcrypt hashed
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
 // ─── Knowledge Areas ────────────────────────────────────────────────────────
 
 model KnowledgeArea {

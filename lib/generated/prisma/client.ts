@@ -62,6 +62,11 @@ export type VerificationToken = Prisma.VerificationTokenModel
  */
 export type User = Prisma.UserModel
 /**
+ * Model PendingRegistration
+ * 
+ */
+export type PendingRegistration = Prisma.PendingRegistrationModel
+/**
  * Model KnowledgeArea
  * 
  */

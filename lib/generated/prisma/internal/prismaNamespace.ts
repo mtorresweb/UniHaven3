@@ -388,6 +388,7 @@ export const ModelName = {
   Session: 'Session',
   VerificationToken: 'VerificationToken',
   User: 'User',
+  PendingRegistration: 'PendingRegistration',
   KnowledgeArea: 'KnowledgeArea',
   Project: 'Project',
   ProjectAuthor: 'ProjectAuthor',
@@ -419,7 +420,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "account" | "session" | "verificationToken" | "user" | "knowledgeArea" | "project" | "projectAuthor" | "projectFile" | "projectVersion" | "comment" | "reaction" | "report" | "notification" | "chat" | "chatParticipant" | "message" | "announcement" | "bookmark" | "userFollow" | "projectFollow"
+    modelProps: "account" | "session" | "verificationToken" | "user" | "pendingRegistration" | "knowledgeArea" | "project" | "projectAuthor" | "projectFile" | "projectVersion" | "comment" | "reaction" | "report" | "notification" | "chat" | "chatParticipant" | "message" | "announcement" | "bookmark" | "userFollow" | "projectFollow"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -716,6 +717,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.UserCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.UserCountAggregateOutputType> | number
+        }
+      }
+    }
+    PendingRegistration: {
+      payload: Prisma.$PendingRegistrationPayload<ExtArgs>
+      fields: Prisma.PendingRegistrationFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PendingRegistrationFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingRegistrationPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PendingRegistrationFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingRegistrationPayload>
+        }
+        findFirst: {
+          args: Prisma.PendingRegistrationFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingRegistrationPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PendingRegistrationFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingRegistrationPayload>
+        }
+        findMany: {
+          args: Prisma.PendingRegistrationFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingRegistrationPayload>[]
+        }
+        create: {
+          args: Prisma.PendingRegistrationCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingRegistrationPayload>
+        }
+        createMany: {
+          args: Prisma.PendingRegistrationCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PendingRegistrationCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingRegistrationPayload>[]
+        }
+        delete: {
+          args: Prisma.PendingRegistrationDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingRegistrationPayload>
+        }
+        update: {
+          args: Prisma.PendingRegistrationUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingRegistrationPayload>
+        }
+        deleteMany: {
+          args: Prisma.PendingRegistrationDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PendingRegistrationUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PendingRegistrationUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingRegistrationPayload>[]
+        }
+        upsert: {
+          args: Prisma.PendingRegistrationUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PendingRegistrationPayload>
+        }
+        aggregate: {
+          args: Prisma.PendingRegistrationAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePendingRegistration>
+        }
+        groupBy: {
+          args: Prisma.PendingRegistrationGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PendingRegistrationGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PendingRegistrationCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PendingRegistrationCountAggregateOutputType> | number
         }
       }
     }
@@ -1997,6 +2072,19 @@ export const UserScalarFieldEnum = {
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
+export const PendingRegistrationScalarFieldEnum = {
+  id: 'id',
+  email: 'email',
+  name: 'name',
+  password: 'password',
+  token: 'token',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt'
+} as const
+
+export type PendingRegistrationScalarFieldEnum = (typeof PendingRegistrationScalarFieldEnum)[keyof typeof PendingRegistrationScalarFieldEnum]
+
+
 export const KnowledgeAreaScalarFieldEnum = {
   id: 'id',
   name: 'name',
@@ -2535,6 +2623,7 @@ export type GlobalOmitConfig = {
   session?: Prisma.SessionOmit
   verificationToken?: Prisma.VerificationTokenOmit
   user?: Prisma.UserOmit
+  pendingRegistration?: Prisma.PendingRegistrationOmit
   knowledgeArea?: Prisma.KnowledgeAreaOmit
   project?: Prisma.ProjectOmit
   projectAuthor?: Prisma.ProjectAuthorOmit

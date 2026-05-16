@@ -16,33 +16,63 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { BookOpen, Loader2 } from "lucide-react";
+import { BookOpen, Loader2, Mail } from "lucide-react";
 import { toast } from "sonner";
 
-type ActionState = { error?: string; success?: boolean; redirect?: string } | null;
+type ActionState = {
+  error?: string;
+  success?: boolean;
+  pending?: boolean;
+  redirect?: string;
+  email?: string;
+} | null;
 
-function RegisterForm() {  const [state, action, isPending] = useActionState<ActionState, FormData>(
-    async (_, formData) => {
-      const result = await registerAction(formData);
-      return result;
-    },
+function RegisterForm() {
+  const [state, action, isPending] = useActionState<ActionState, FormData>(
+    async (_, formData) => registerAction(formData),
     null
   );
 
   useEffect(() => {
+    if (state?.pending) {
+      return;
+    }
+
     if (state?.success) {
-      toast.success("¡Cuenta creada! Bienvenido a UniHaven.");
       window.location.href = state.redirect ?? "/";
     }
+
     if (state?.error) {
       toast.error(state.error);
     }
   }, [state]);
 
+  if (state?.pending) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardContent className="flex flex-col items-center gap-4 pt-6 text-center">
+          <div className="rounded-full bg-green-500/10 p-4">
+            <Mail className="h-8 w-8 text-green-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold">Revisa tu correo</h2>
+            <p className="mt-2 text-muted-foreground">
+              Te enviamos un enlace de confirmación a {state.email}. Haz click en el enlace para activar tu cuenta.
+              El enlace expira en 24 horas.
+            </p>
+          </div>
+          <Link href="/login">
+            <Button variant="outline">Ir al inicio de sesión</Button>
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
-        <div className="flex justify-center mb-2">
+        <div className="mb-2 flex justify-center">
           <BookOpen className="h-8 w-8 text-primary" />
         </div>
         <CardTitle className="text-2xl">Crear cuenta</CardTitle>
@@ -52,7 +82,6 @@ function RegisterForm() {  const [state, action, isPending] = useActionState<Act
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Google OAuth */}
         <Button
           type="button"
           variant="outline"
@@ -97,7 +126,7 @@ function RegisterForm() {  const [state, action, isPending] = useActionState<Act
 
       <CardFooter className="justify-center text-sm text-muted-foreground">
         ¿Ya tienes cuenta?&nbsp;
-        <Link href="/login" className="text-primary hover:underline font-medium">
+        <Link href="/login" className="font-medium text-primary hover:underline">
           Inicia sesión
         </Link>
       </CardFooter>

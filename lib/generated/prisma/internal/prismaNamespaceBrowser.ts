@@ -55,6 +55,7 @@ export const ModelName = {
   Session: 'Session',
   VerificationToken: 'VerificationToken',
   User: 'User',
+  PendingRegistration: 'PendingRegistration',
   KnowledgeArea: 'KnowledgeArea',
   Project: 'Project',
   ProjectAuthor: 'ProjectAuthor',
@@ -142,6 +143,19 @@ export const UserScalarFieldEnum = {
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const PendingRegistrationScalarFieldEnum = {
+  id: 'id',
+  email: 'email',
+  name: 'name',
+  password: 'password',
+  token: 'token',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt'
+} as const
+
+export type PendingRegistrationScalarFieldEnum = (typeof PendingRegistrationScalarFieldEnum)[keyof typeof PendingRegistrationScalarFieldEnum]
 
 
 export const KnowledgeAreaScalarFieldEnum = {
