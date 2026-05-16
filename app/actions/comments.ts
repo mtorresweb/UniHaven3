@@ -123,6 +123,36 @@ export async function addComment(
 
   revalidatePath(`/projects/${projectId}`);
 
+  // Notify project authors (skip the commenter)
+  try {
+    const { triggerUnreadNotificationCount } = await import("@/lib/notifications");
+    const authors = await prisma.projectAuthor.findMany({
+      where: { projectId },
+      select: { userId: true },
+    });
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { title: true },
+    });
+    for (const author of authors) {
+      if (author.userId === session.user.id) continue;
+      await prisma.notification.create({
+        data: {
+          userId: author.userId,
+          type: "COMMENT",
+          reference: {
+            projectId,
+            commentId: created.id,
+            title: project?.title ?? "un proyecto",
+          },
+        },
+      });
+      await triggerUnreadNotificationCount(author.userId);
+    }
+  } catch {
+    // non-critical
+  }
+
   return {
     comment: createdComment ?? undefined,
   };

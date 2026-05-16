@@ -48,11 +48,3 @@ export const ReportCategory = {
 export type ReportCategory =
   (typeof ReportCategory)[keyof typeof ReportCategory];
 
-export const AnnouncementPriority = {
-  INFO: "INFO",
-  IMPORTANT: "IMPORTANT",
-  URGENT: "URGENT",
-} as const;
-
-export type AnnouncementPriority =
-  (typeof AnnouncementPriority)[keyof typeof AnnouncementPriority];

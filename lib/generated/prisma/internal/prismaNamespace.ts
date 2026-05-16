@@ -2148,9 +2148,9 @@ export type MessageScalarFieldEnum = (typeof MessageScalarFieldEnum)[keyof typeo
 export const AnnouncementScalarFieldEnum = {
   id: 'id',
   title: 'title',
-  content: 'content',
-  priority: 'priority',
-  expiresAt: 'expiresAt',
+  body: 'body',
+  pinned: 'pinned',
+  coverImage: 'coverImage',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -2405,20 +2405,6 @@ export type EnumChatTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaM
  * Reference to a field of type 'ChatType[]'
  */
 export type ListEnumChatTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ChatType[]'>
-    
-
-
-/**
- * Reference to a field of type 'AnnouncementPriority'
- */
-export type EnumAnnouncementPriorityFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AnnouncementPriority'>
-    
-
-
-/**
- * Reference to a field of type 'AnnouncementPriority[]'
- */
-export type ListEnumAnnouncementPriorityFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AnnouncementPriority[]'>
     
 
 

@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Flag, Shield, Users } from "lucide-react";
+import { BookOpen, Flag, Megaphone, Shield, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/admin", label: "Reportes", icon: Flag },
   { href: "/admin/users", label: "Usuarios", icon: Users },
   { href: "/admin/projects", label: "Proyectos", icon: BookOpen },
+  { href: "/admin/announcements", label: "Anuncios", icon: Megaphone },
 ] as const;
 
 export function AdminNav() {

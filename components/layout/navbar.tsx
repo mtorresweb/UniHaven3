@@ -23,11 +23,11 @@ import {
   LogOut,
   Menu,
   Plus,
-  Settings,
   Shield,
   Upload,
   User,
 } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 const navLinks = [
   { href: "/", label: "Inicio", icon: Home },
@@ -52,11 +52,17 @@ function UserInitials(name?: string | null) {
     .toUpperCase();
 }
 
-function NavLinks({ onClick }: { onClick?: () => void }) {
+function NavLinks({
+  links,
+  onClick,
+}: {
+  links: typeof navLinks;
+  onClick?: () => void;
+}) {
   const pathname = usePathname();
   return (
     <>
-      {navLinks.map(({ href, label, icon: Icon }) => (
+      {links.map(({ href, label, icon: Icon }) => (
         <Link
           key={href}
           href={href}
@@ -78,6 +84,7 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const isLoading = status === "loading";
   const user = session?.user;
+  const links = navLinks;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -90,25 +97,17 @@ export function Navbar() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1">
-          <NavLinks />
+          <NavLinks links={links} />
         </nav>
 
         {/* Right side */}
         <div className="flex items-center gap-2">
           {!isLoading && (
             <>
-              {/* Upload button — UPC students & admins */}
-              {(user?.role === Role.UPC_STUDENT || user?.role === Role.ADMIN) && (
-                <Button asChild size="sm" className="hidden md:flex gap-1">
-                  <Link href="/projects/new">
-                    <Upload className="h-4 w-4" />
-                    Subir proyecto
-                  </Link>
-                </Button>
-              )}
-
               {user ? (
-                <DropdownMenu>
+                <>
+                  <NotificationBell userId={user.id} />
+                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
                       <Avatar className="h-8 w-8">
@@ -147,11 +146,6 @@ export function Navbar() {
                       </>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/settings" className="flex gap-2">
-                        <Settings className="h-4 w-4" /> Configuración
-                      </Link>
-                    </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => signOut({ callbackUrl: "/" })}
                       className="flex gap-2 text-destructive focus:text-destructive"
@@ -160,6 +154,7 @@ export function Navbar() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                </>
               ) : (
                 <div className="flex gap-2">
                   <Button asChild variant="ghost" size="sm">
@@ -186,7 +181,7 @@ export function Navbar() {
                   <BookOpen className="h-6 w-6 text-primary" />
                   UniHaven
                 </Link>
-                <NavLinks onClick={() => setMobileOpen(false)} />
+                <NavLinks links={links} onClick={() => setMobileOpen(false)} />
                 {(user?.role === Role.UPC_STUDENT || user?.role === Role.ADMIN) && (
                   <Button asChild size="sm" className="mt-2">
                     <Link href="/projects/new" onClick={() => setMobileOpen(false)}>

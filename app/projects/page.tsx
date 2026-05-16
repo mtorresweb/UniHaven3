@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -17,10 +18,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AnnouncementBannerClient } from "@/components/announcements/announcement-banner-client";
 import { Eye, Download, BookOpen, Search, GitBranch } from "lucide-react";
 import { Suspense } from "react";
 
-export const metadata = { title: "Proyectos — UniHaven" };
+export const metadata: Metadata = {
+  title: "Proyectos — UniHaven",
+  description:
+    "Explora proyectos de grado, investigaciones y proyectos de aula de la Universidad Popular del Cesar.",
+};
 
 const TYPE_LABELS: Record<string, string> = {
   THESIS: "Tesis de Grado",
@@ -251,10 +257,17 @@ export default async function ProjectsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
-  const areas = await prisma.knowledgeArea.findMany({
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
+  const [areas, latestPinnedAnnouncement] = await Promise.all([
+    prisma.knowledgeArea.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.announcement.findFirst({
+      where: { pinned: true },
+      select: { id: true, title: true, body: true, coverImage: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 2009 }, (_, i) => currentYear - i);
@@ -267,6 +280,16 @@ export default async function ProjectsPage({
           Repositorio de tesis, investigaciones y proyectos de la Universidad Popular del Cesar
         </p>
       </div>
+
+      {latestPinnedAnnouncement ? (
+        <AnnouncementBannerClient
+          key={latestPinnedAnnouncement.id}
+          announcementId={latestPinnedAnnouncement.id}
+          title={latestPinnedAnnouncement.title}
+          body={latestPinnedAnnouncement.body}
+          coverImage={latestPinnedAnnouncement.coverImage}
+        />
+      ) : null}
 
       {/* Filters */}
       <form method="GET" className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end">

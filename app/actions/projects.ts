@@ -7,6 +7,7 @@ import {
   commitFilesToRepo,
   createProjectRepo,
   generateReadme,
+  makeRepoPublic,
   type GitHubFile,
 } from "@/lib/github";
 import { put } from "@vercel/blob";
@@ -272,6 +273,141 @@ export async function removeProject(projectId: string, note: string) {
   revalidatePath("/admin");
   revalidatePath("/admin/projects");
   return { ok: true };
+}
+
+// ── Reinstate a rejected project ──────────────────────────────────────────
+export async function reinstateProject(projectId: string) {
+  const session = await auth();
+  if (session?.user?.role !== Role.ADMIN) return { error: "No autorizado." };
+
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project) return { error: "Proyecto no encontrado." };
+  if (project.status !== "REJECTED") return { error: "Solo se pueden reintegrar proyectos rechazados." };
+
+  if (project.githubRepo) await makeRepoPublic(project.githubRepo).catch(() => {});
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { status: "APPROVED", rejectionNote: null },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
+  revalidatePath("/admin");
+  revalidatePath("/admin/projects");
+  return { ok: true };
+}
+
+// ── Permanently delete a project ──────────────────────────────────────────
+export async function deleteProject(projectId: string) {
+  const session = await auth();
+  if (session?.user?.role !== Role.ADMIN) return { error: "No autorizado." };
+
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project) return { error: "Proyecto no encontrado." };
+
+  // Try to delete the GitHub repo (best-effort)
+  if (project.githubRepo) {
+    try {
+      const { Octokit } = await import("octokit");
+      const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+      const [owner, repo] = project.githubRepo.split("/");
+      await octokit.rest.repos.delete({ owner, repo });
+    } catch {
+      // Ignore — repo may not exist or token may lack delete scope
+    }
+  }
+
+  // Delete cover image from Vercel Blob (best-effort)
+  if (project.coverImage) {
+    try {
+      const { del } = await import("@vercel/blob");
+      await del(project.coverImage);
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Cascading deletes handle all related records
+  await prisma.project.delete({ where: { id: projectId } });
+
+  revalidatePath("/projects");
+  revalidatePath("/admin");
+  revalidatePath("/admin/projects");
+  return { ok: true };
+}
+
+// ── Upload a new version of an existing project ───────────────────────────
+export async function uploadProjectVersion(projectId: string, formData: FormData) {
+  const session = await auth();
+  if (!session?.user) return { error: "No autorizado." };
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: {
+      id: true,
+      title: true,
+      githubRepo: true,
+      status: true,
+      authors: { select: { userId: true } },
+      versions: { orderBy: { number: "desc" }, take: 1, select: { number: true } },
+    },
+  });
+
+  if (!project) return { error: "Proyecto no encontrado." };
+
+  const isAuthor = project.authors.some((a) => a.userId === session.user.id);
+  const isAdmin = session.user.role === Role.ADMIN;
+  if (!isAuthor && !isAdmin) return { error: "Solo los autores pueden subir versiones." };
+
+  const changelog = (formData.get("changelog") as string | null)?.trim() ?? "";
+  const rawFiles = formData.getAll("files") as File[];
+  const validFiles = rawFiles.filter((f) => f.size > 0);
+
+  if (validFiles.length === 0) return { error: "Debes subir al menos un archivo." };
+
+  const nextNumber = (project.versions[0]?.number ?? 0) + 1;
+
+  // Commit to GitHub
+  let commitSha: string | undefined;
+  if (project.githubRepo) {
+    try {
+      const fileBuffers: GitHubFile[] = await Promise.all(
+        validFiles.map(async (f) => ({
+          path: f.name,
+          content: Buffer.from(await f.arrayBuffer()),
+        }))
+      );
+      commitSha = await commitFilesToRepo(
+        project.githubRepo,
+        fileBuffers,
+        `v${nextNumber}: ${changelog || "Nueva versión"}`
+      );
+    } catch {
+      // non-fatal — still record the version
+    }
+  }
+
+  // Upload files to Vercel Blob
+  for (const file of validFiles) {
+    const blob = await put(`projects/${projectId}/${file.name}`, file, { access: "public" });
+    await prisma.projectFile.create({
+      data: { projectId, name: file.name, blobUrl: blob.url, mimeType: file.type || "application/octet-stream", size: file.size },
+    });
+  }
+
+  // Create version record
+  const version = await prisma.projectVersion.create({
+    data: {
+      projectId,
+      number: nextNumber,
+      changelog: changelog || null,
+      commitSHA: commitSha ?? null,
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  return { ok: true, version };
 }
 
 // ── Increment view counter ─────────────────────────────────────────────────

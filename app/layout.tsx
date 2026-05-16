@@ -15,10 +15,28 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteDescription =
+  "Repositorio académico de proyectos de grado, investigación y aula de la Universidad Popular del Cesar.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://unihaven.vercel.app",
+  ),
+  applicationName: "UniHaven",
   title: "UniHaven — Universidad Popular del Cesar",
-  description:
-    "Repositorio académico de proyectos de grado, investigación y aula de la Universidad Popular del Cesar.",
+  description: siteDescription,
+  openGraph: {
+    title: "UniHaven",
+    description: siteDescription,
+    siteName: "UniHaven",
+    type: "website",
+    locale: "es_CO",
+  },
+  twitter: {
+    card: "summary",
+    title: "UniHaven",
+    description: siteDescription,
+  },
 };
 
 export default function RootLayout({

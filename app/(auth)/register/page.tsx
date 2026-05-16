@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { registerAction } from "@/app/actions/auth";
@@ -22,10 +21,7 @@ import { toast } from "sonner";
 
 type ActionState = { error?: string; success?: boolean; redirect?: string } | null;
 
-function RegisterForm() {
-  const router = useRouter();
-
-  const [state, action, isPending] = useActionState<ActionState, FormData>(
+function RegisterForm() {  const [state, action, isPending] = useActionState<ActionState, FormData>(
     async (_, formData) => {
       const result = await registerAction(formData);
       return result;
@@ -36,13 +32,12 @@ function RegisterForm() {
   useEffect(() => {
     if (state?.success) {
       toast.success("¡Cuenta creada! Bienvenido a UniHaven.");
-      router.push(state.redirect ?? "/");
-      router.refresh();
+      window.location.href = state.redirect ?? "/";
     }
     if (state?.error) {
       toast.error(state.error);
     }
-  }, [state, router]);
+  }, [state]);
 
   return (
     <Card className="w-full max-w-md">

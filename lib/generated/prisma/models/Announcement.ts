@@ -27,9 +27,9 @@ export type AggregateAnnouncement = {
 export type AnnouncementMinAggregateOutputType = {
   id: string | null
   title: string | null
-  content: string | null
-  priority: $Enums.AnnouncementPriority | null
-  expiresAt: Date | null
+  body: string | null
+  pinned: boolean | null
+  coverImage: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -37,9 +37,9 @@ export type AnnouncementMinAggregateOutputType = {
 export type AnnouncementMaxAggregateOutputType = {
   id: string | null
   title: string | null
-  content: string | null
-  priority: $Enums.AnnouncementPriority | null
-  expiresAt: Date | null
+  body: string | null
+  pinned: boolean | null
+  coverImage: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -47,9 +47,9 @@ export type AnnouncementMaxAggregateOutputType = {
 export type AnnouncementCountAggregateOutputType = {
   id: number
   title: number
-  content: number
-  priority: number
-  expiresAt: number
+  body: number
+  pinned: number
+  coverImage: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -59,9 +59,9 @@ export type AnnouncementCountAggregateOutputType = {
 export type AnnouncementMinAggregateInputType = {
   id?: true
   title?: true
-  content?: true
-  priority?: true
-  expiresAt?: true
+  body?: true
+  pinned?: true
+  coverImage?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -69,9 +69,9 @@ export type AnnouncementMinAggregateInputType = {
 export type AnnouncementMaxAggregateInputType = {
   id?: true
   title?: true
-  content?: true
-  priority?: true
-  expiresAt?: true
+  body?: true
+  pinned?: true
+  coverImage?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -79,9 +79,9 @@ export type AnnouncementMaxAggregateInputType = {
 export type AnnouncementCountAggregateInputType = {
   id?: true
   title?: true
-  content?: true
-  priority?: true
-  expiresAt?: true
+  body?: true
+  pinned?: true
+  coverImage?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -162,9 +162,9 @@ export type AnnouncementGroupByArgs<ExtArgs extends runtime.Types.Extensions.Int
 export type AnnouncementGroupByOutputType = {
   id: string
   title: string
-  content: string
-  priority: $Enums.AnnouncementPriority
-  expiresAt: Date | null
+  body: string
+  pinned: boolean
+  coverImage: string | null
   createdAt: Date
   updatedAt: Date
   _count: AnnouncementCountAggregateOutputType | null
@@ -193,9 +193,9 @@ export type AnnouncementWhereInput = {
   NOT?: Prisma.AnnouncementWhereInput | Prisma.AnnouncementWhereInput[]
   id?: Prisma.StringFilter<"Announcement"> | string
   title?: Prisma.StringFilter<"Announcement"> | string
-  content?: Prisma.StringFilter<"Announcement"> | string
-  priority?: Prisma.EnumAnnouncementPriorityFilter<"Announcement"> | $Enums.AnnouncementPriority
-  expiresAt?: Prisma.DateTimeNullableFilter<"Announcement"> | Date | string | null
+  body?: Prisma.StringFilter<"Announcement"> | string
+  pinned?: Prisma.BoolFilter<"Announcement"> | boolean
+  coverImage?: Prisma.StringNullableFilter<"Announcement"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Announcement"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Announcement"> | Date | string
 }
@@ -203,9 +203,9 @@ export type AnnouncementWhereInput = {
 export type AnnouncementOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   title?: Prisma.SortOrder
-  content?: Prisma.SortOrder
-  priority?: Prisma.SortOrder
-  expiresAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  body?: Prisma.SortOrder
+  pinned?: Prisma.SortOrder
+  coverImage?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -216,9 +216,9 @@ export type AnnouncementWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.AnnouncementWhereInput[]
   NOT?: Prisma.AnnouncementWhereInput | Prisma.AnnouncementWhereInput[]
   title?: Prisma.StringFilter<"Announcement"> | string
-  content?: Prisma.StringFilter<"Announcement"> | string
-  priority?: Prisma.EnumAnnouncementPriorityFilter<"Announcement"> | $Enums.AnnouncementPriority
-  expiresAt?: Prisma.DateTimeNullableFilter<"Announcement"> | Date | string | null
+  body?: Prisma.StringFilter<"Announcement"> | string
+  pinned?: Prisma.BoolFilter<"Announcement"> | boolean
+  coverImage?: Prisma.StringNullableFilter<"Announcement"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Announcement"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Announcement"> | Date | string
 }, "id">
@@ -226,9 +226,9 @@ export type AnnouncementWhereUniqueInput = Prisma.AtLeast<{
 export type AnnouncementOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   title?: Prisma.SortOrder
-  content?: Prisma.SortOrder
-  priority?: Prisma.SortOrder
-  expiresAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  body?: Prisma.SortOrder
+  pinned?: Prisma.SortOrder
+  coverImage?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AnnouncementCountOrderByAggregateInput
@@ -242,9 +242,9 @@ export type AnnouncementScalarWhereWithAggregatesInput = {
   NOT?: Prisma.AnnouncementScalarWhereWithAggregatesInput | Prisma.AnnouncementScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"Announcement"> | string
   title?: Prisma.StringWithAggregatesFilter<"Announcement"> | string
-  content?: Prisma.StringWithAggregatesFilter<"Announcement"> | string
-  priority?: Prisma.EnumAnnouncementPriorityWithAggregatesFilter<"Announcement"> | $Enums.AnnouncementPriority
-  expiresAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Announcement"> | Date | string | null
+  body?: Prisma.StringWithAggregatesFilter<"Announcement"> | string
+  pinned?: Prisma.BoolWithAggregatesFilter<"Announcement"> | boolean
+  coverImage?: Prisma.StringNullableWithAggregatesFilter<"Announcement"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Announcement"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Announcement"> | Date | string
 }
@@ -252,9 +252,9 @@ export type AnnouncementScalarWhereWithAggregatesInput = {
 export type AnnouncementCreateInput = {
   id?: string
   title: string
-  content: string
-  priority?: $Enums.AnnouncementPriority
-  expiresAt?: Date | string | null
+  body: string
+  pinned?: boolean
+  coverImage?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -262,9 +262,9 @@ export type AnnouncementCreateInput = {
 export type AnnouncementUncheckedCreateInput = {
   id?: string
   title: string
-  content: string
-  priority?: $Enums.AnnouncementPriority
-  expiresAt?: Date | string | null
+  body: string
+  pinned?: boolean
+  coverImage?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -272,9 +272,9 @@ export type AnnouncementUncheckedCreateInput = {
 export type AnnouncementUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
-  content?: Prisma.StringFieldUpdateOperationsInput | string
-  priority?: Prisma.EnumAnnouncementPriorityFieldUpdateOperationsInput | $Enums.AnnouncementPriority
-  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  body?: Prisma.StringFieldUpdateOperationsInput | string
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -282,9 +282,9 @@ export type AnnouncementUpdateInput = {
 export type AnnouncementUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
-  content?: Prisma.StringFieldUpdateOperationsInput | string
-  priority?: Prisma.EnumAnnouncementPriorityFieldUpdateOperationsInput | $Enums.AnnouncementPriority
-  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  body?: Prisma.StringFieldUpdateOperationsInput | string
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -292,9 +292,9 @@ export type AnnouncementUncheckedUpdateInput = {
 export type AnnouncementCreateManyInput = {
   id?: string
   title: string
-  content: string
-  priority?: $Enums.AnnouncementPriority
-  expiresAt?: Date | string | null
+  body: string
+  pinned?: boolean
+  coverImage?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -302,9 +302,9 @@ export type AnnouncementCreateManyInput = {
 export type AnnouncementUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
-  content?: Prisma.StringFieldUpdateOperationsInput | string
-  priority?: Prisma.EnumAnnouncementPriorityFieldUpdateOperationsInput | $Enums.AnnouncementPriority
-  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  body?: Prisma.StringFieldUpdateOperationsInput | string
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -312,9 +312,9 @@ export type AnnouncementUpdateManyMutationInput = {
 export type AnnouncementUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
-  content?: Prisma.StringFieldUpdateOperationsInput | string
-  priority?: Prisma.EnumAnnouncementPriorityFieldUpdateOperationsInput | $Enums.AnnouncementPriority
-  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  body?: Prisma.StringFieldUpdateOperationsInput | string
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -322,9 +322,9 @@ export type AnnouncementUncheckedUpdateManyInput = {
 export type AnnouncementCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   title?: Prisma.SortOrder
-  content?: Prisma.SortOrder
-  priority?: Prisma.SortOrder
-  expiresAt?: Prisma.SortOrder
+  body?: Prisma.SortOrder
+  pinned?: Prisma.SortOrder
+  coverImage?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -332,9 +332,9 @@ export type AnnouncementCountOrderByAggregateInput = {
 export type AnnouncementMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   title?: Prisma.SortOrder
-  content?: Prisma.SortOrder
-  priority?: Prisma.SortOrder
-  expiresAt?: Prisma.SortOrder
+  body?: Prisma.SortOrder
+  pinned?: Prisma.SortOrder
+  coverImage?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -342,15 +342,11 @@ export type AnnouncementMaxOrderByAggregateInput = {
 export type AnnouncementMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   title?: Prisma.SortOrder
-  content?: Prisma.SortOrder
-  priority?: Prisma.SortOrder
-  expiresAt?: Prisma.SortOrder
+  body?: Prisma.SortOrder
+  pinned?: Prisma.SortOrder
+  coverImage?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
-}
-
-export type EnumAnnouncementPriorityFieldUpdateOperationsInput = {
-  set?: $Enums.AnnouncementPriority
 }
 
 
@@ -358,9 +354,9 @@ export type EnumAnnouncementPriorityFieldUpdateOperationsInput = {
 export type AnnouncementSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   title?: boolean
-  content?: boolean
-  priority?: boolean
-  expiresAt?: boolean
+  body?: boolean
+  pinned?: boolean
+  coverImage?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["announcement"]>
@@ -368,9 +364,9 @@ export type AnnouncementSelect<ExtArgs extends runtime.Types.Extensions.Internal
 export type AnnouncementSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   title?: boolean
-  content?: boolean
-  priority?: boolean
-  expiresAt?: boolean
+  body?: boolean
+  pinned?: boolean
+  coverImage?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["announcement"]>
@@ -378,9 +374,9 @@ export type AnnouncementSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
 export type AnnouncementSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   title?: boolean
-  content?: boolean
-  priority?: boolean
-  expiresAt?: boolean
+  body?: boolean
+  pinned?: boolean
+  coverImage?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["announcement"]>
@@ -388,14 +384,14 @@ export type AnnouncementSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
 export type AnnouncementSelectScalar = {
   id?: boolean
   title?: boolean
-  content?: boolean
-  priority?: boolean
-  expiresAt?: boolean
+  body?: boolean
+  pinned?: boolean
+  coverImage?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AnnouncementOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "content" | "priority" | "expiresAt" | "createdAt" | "updatedAt", ExtArgs["result"]["announcement"]>
+export type AnnouncementOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "body" | "pinned" | "coverImage" | "createdAt" | "updatedAt", ExtArgs["result"]["announcement"]>
 
 export type $AnnouncementPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Announcement"
@@ -403,9 +399,9 @@ export type $AnnouncementPayload<ExtArgs extends runtime.Types.Extensions.Intern
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     title: string
-    content: string
-    priority: $Enums.AnnouncementPriority
-    expiresAt: Date | null
+    body: string
+    pinned: boolean
+    coverImage: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["announcement"]>
@@ -833,9 +829,9 @@ export interface Prisma__AnnouncementClient<T, Null = never, ExtArgs extends run
 export interface AnnouncementFieldRefs {
   readonly id: Prisma.FieldRef<"Announcement", 'String'>
   readonly title: Prisma.FieldRef<"Announcement", 'String'>
-  readonly content: Prisma.FieldRef<"Announcement", 'String'>
-  readonly priority: Prisma.FieldRef<"Announcement", 'AnnouncementPriority'>
-  readonly expiresAt: Prisma.FieldRef<"Announcement", 'DateTime'>
+  readonly body: Prisma.FieldRef<"Announcement", 'String'>
+  readonly pinned: Prisma.FieldRef<"Announcement", 'Boolean'>
+  readonly coverImage: Prisma.FieldRef<"Announcement", 'String'>
   readonly createdAt: Prisma.FieldRef<"Announcement", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Announcement", 'DateTime'>
 }

@@ -305,20 +305,14 @@ model Message {
 
 // ─── Announcements ───────────────────────────────────────────────────────────
 
-enum AnnouncementPriority {
-  INFO
-  IMPORTANT
-  URGENT
-}
-
 model Announcement {
-  id        String               @id @default(cuid())
-  title     String
-  content   String               @db.Text
-  priority  AnnouncementPriority @default(INFO)
-  expiresAt DateTime?
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+  id         String   @id @default(cuid())
+  title      String
+  body       String   @db.Text
+  pinned     Boolean  @default(false)
+  coverImage String?  // optional Vercel Blob URL
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 // ─── Bookmarks ───────────────────────────────────────────────────────────────

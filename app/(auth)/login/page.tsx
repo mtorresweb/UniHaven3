@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useActionState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { loginAction } from "@/app/actions/auth";
@@ -24,7 +24,6 @@ import { toast } from "sonner";
 type ActionState = { error?: string; success?: boolean } | null;
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
 
@@ -38,13 +37,12 @@ function LoginForm() {
 
   useEffect(() => {
     if (state?.success) {
-      router.push(callbackUrl);
-      router.refresh();
+      window.location.href = callbackUrl;
     }
     if (state?.error) {
       toast.error(state.error);
     }
-  }, [state, router, callbackUrl]);
+  }, [state, callbackUrl]);
 
   return (
     <Card className="w-full max-w-md">

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Eye } from "lucide-react";
 import prisma from "@/lib/prisma";
 import { RemoveProjectButton } from "@/components/admin/remove-project-button";
+import { DeleteProjectButton } from "@/components/admin/delete-project-button";
+import { ReinstateProjectButton } from "@/components/admin/reinstate-project-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -119,9 +121,16 @@ export default async function AdminProjectsPage() {
                           <RemoveProjectButton
                             projectId={project.id}
                             note="Proyecto retirado por administración desde el panel de proyectos."
-                            label="Eliminar"
+                            label="Retirar"
                           />
                         )}
+                        {project.status === "REJECTED" && (
+                          <ReinstateProjectButton projectId={project.id} />
+                        )}
+                        <DeleteProjectButton
+                          projectId={project.id}
+                          projectTitle={project.title}
+                        />
                       </div>
                     </TableCell>
                   </TableRow>

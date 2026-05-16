@@ -89,12 +89,3 @@ export const ChatType = {
 } as const
 
 export type ChatType = (typeof ChatType)[keyof typeof ChatType]
-
-
-export const AnnouncementPriority = {
-  INFO: 'INFO',
-  IMPORTANT: 'IMPORTANT',
-  URGENT: 'URGENT'
-} as const
-
-export type AnnouncementPriority = (typeof AnnouncementPriority)[keyof typeof AnnouncementPriority]

@@ -295,9 +295,9 @@ export type MessageScalarFieldEnum = (typeof MessageScalarFieldEnum)[keyof typeo
 export const AnnouncementScalarFieldEnum = {
   id: 'id',
   title: 'title',
-  content: 'content',
-  priority: 'priority',
-  expiresAt: 'expiresAt',
+  body: 'body',
+  pinned: 'pinned',
+  coverImage: 'coverImage',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

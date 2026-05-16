@@ -2,35 +2,29 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, XCircle } from "lucide-react";
+import { Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { removeProject } from "@/app/actions/projects";
+import { reinstateProject } from "@/app/actions/projects";
 import { Button } from "@/components/ui/button";
 
-interface RemoveProjectButtonProps {
+interface ReinstateProjectButtonProps {
   projectId: string;
-  note: string;
-  label?: string;
 }
 
-export function RemoveProjectButton({
-  projectId,
-  note,
-  label = "Eliminar proyecto",
-}: RemoveProjectButtonProps) {
+export function ReinstateProjectButton({ projectId }: ReinstateProjectButtonProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   function handleClick() {
     startTransition(async () => {
-      const result = await removeProject(projectId, note);
+      const result = await reinstateProject(projectId);
 
       if (result.error) {
         toast.error(result.error);
         return;
       }
 
-      toast.success("Proyecto eliminado correctamente.");
+      toast.success("Proyecto reintegrado correctamente.");
       router.refresh();
     });
   }
@@ -38,7 +32,7 @@ export function RemoveProjectButton({
   return (
     <Button
       type="button"
-      variant="destructive"
+      variant="outline"
       size="sm"
       onClick={handleClick}
       disabled={isPending}
@@ -46,9 +40,9 @@ export function RemoveProjectButton({
       {isPending ? (
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
       ) : (
-        <XCircle className="h-3.5 w-3.5" />
+        <RotateCcw className="h-3.5 w-3.5" />
       )}
-      {label}
+      Reintegrar
     </Button>
   );
 }

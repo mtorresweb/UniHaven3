@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { Role } from "@/lib/constants";
@@ -16,16 +17,63 @@ import {
   BookOpen,
   ExternalLink,
   CheckCircle,
-  Flag,
   GitBranch,
 } from "lucide-react";
 import { incrementProjectView } from "@/app/actions/projects";
 import { repoUrl } from "@/lib/github";
 import { CommentsSection, type CommentWithReplies } from "@/components/projects/comments-section";
 import { ProjectReactions } from "@/components/projects/project-reactions";
+import { FollowButton } from "@/components/follows/follow-button";
+import { BookmarkButton } from "@/components/projects/bookmark-button";
+import { UploadVersionButton } from "@/components/projects/upload-version-button";
 import { ReportDialog } from "@/components/projects/report-dialog";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const project = await prisma.project.findUnique({
+    where: { id },
+    select: {
+      title: true,
+      abstract: true,
+      coverImage: true,
+      year: true,
+      type: true,
+      authors: { take: 3, select: { user: { select: { name: true } } } },
+    },
+  });
+
+  if (!project) return { title: "Proyecto no encontrado — UniHaven" };
+
+  const typeLabel = { THESIS: "Tesis", RESEARCH: "Investigación", CLASSROOM: "Proyecto de aula" }[project.type] ?? project.type;
+  const authorsStr = project.authors.map((a) => a.user.name).filter(Boolean).join(", ");
+  const description = project.abstract
+    ? project.abstract.slice(0, 160)
+    : `${typeLabel} · ${project.year}${authorsStr ? ` · ${authorsStr}` : ""}`;
+
+  return {
+    title: `${project.title} — UniHaven`,
+    description,
+    openGraph: {
+      title: project.title,
+      description,
+      type: "article",
+      ...(project.coverImage ? { images: [{ url: project.coverImage, width: 1200, height: 630 }] } : {}),
+    },
+    twitter: {
+      card: project.coverImage ? "summary_large_image" : "summary",
+      title: project.title,
+      description,
+      ...(project.coverImage ? { images: [project.coverImage] } : {}),
+    },
+  };
+}
 
 const TYPE_LABELS: Record<string, string> = {
   THESIS: "Tesis de Grado",
@@ -71,7 +119,7 @@ const commentSelect = {
   },
 };
 
-function FileIcon({ mimeType }: { mimeType: string }) {
+function FileIcon() {
   return <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />;
 }
 
@@ -119,7 +167,15 @@ export default async function ProjectPage({
   // Increment view count (fire and forget)
   incrementProjectView(id).catch(() => {});
 
-  const [reactionGroups, userReactions, initialComments, totalComments] = await Promise.all([
+  const [
+    reactionGroups,
+    userReactions,
+    initialComments,
+    totalComments,
+    bookmark,
+    projectFollowerCount,
+    projectFollow,
+  ] = await Promise.all([
     prisma.reaction.groupBy({
       by: ["type"],
       where: { projectId: id },
@@ -148,6 +204,29 @@ export default async function ProjectPage({
         hidden: false,
       },
     }),
+    session?.user?.id
+      ? prisma.bookmark.findUnique({
+          where: {
+            userId_projectId: {
+              userId: session.user.id,
+              projectId: id,
+            },
+          },
+        })
+      : Promise.resolve(null),
+    prisma.projectFollow.count({
+      where: { projectId: id },
+    }),
+    session?.user?.id
+      ? prisma.projectFollow.findUnique({
+          where: {
+            userId_projectId: {
+              userId: session.user.id,
+              projectId: id,
+            },
+          },
+        })
+      : Promise.resolve(null),
   ]);
 
   const userReactionSet = new Set(userReactions.map((reaction) => reaction.type));
@@ -160,6 +239,8 @@ export default async function ProjectPage({
     count: reactionCountByType[type] ?? 0,
     active: userReactionSet.has(type),
   }));
+  const isBookmarked = Boolean(bookmark);
+  const isFollowingProject = Boolean(projectFollow);
 
   const submitted = sp.submitted === "1";
 
@@ -219,9 +300,19 @@ export default async function ProjectPage({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <User className="h-3.5 w-3.5" />
-                {project.authors
-                  .map((a) => a.user.name ?? a.user.email)
-                  .join(", ")}
+                <span>
+                  {project.authors.map((author, index) => (
+                    <Fragment key={author.userId}>
+                      {index > 0 ? ", " : null}
+                      <Link
+                        href={`/profile/${author.user.id}`}
+                        className="transition-colors hover:text-foreground"
+                      >
+                        {author.user.name ?? author.user.email}
+                      </Link>
+                    </Fragment>
+                  ))}
+                </span>
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" /> {project.year}
@@ -274,7 +365,7 @@ export default async function ProjectPage({
                     key={f.id}
                     className="flex items-center gap-3 rounded-lg border bg-card p-3"
                   >
-                    <FileIcon mimeType={f.mimeType} />
+                    <FileIcon />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{f.name}</p>
                       <p className="text-xs text-muted-foreground">
@@ -302,7 +393,15 @@ export default async function ProjectPage({
           {/* Version history */}
           {project.versions.length > 0 && (
             <section>
-              <h2 className="mb-3 font-semibold">Historial de versiones</h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold">Historial de versiones</h2>
+                {(isAuthor || isAdmin) && project.status === "APPROVED" && (
+                  <UploadVersionButton
+                    projectId={project.id}
+                    currentVersion={project.versions[0]?.number ?? 0}
+                  />
+                )}
+              </div>
               <div className="space-y-2">
                 {project.versions.map((v) => (
                   <div
@@ -344,20 +443,42 @@ export default async function ProjectPage({
 
         {/* ── Sidebar ────────────────────────────────────────────────────── */}
         <aside className="space-y-6 pt-2">
-          {/* GitHub link */}
-          {project.githubRepo && project.status === "APPROVED" && (
-            <Link
-              href={repoUrl(project.githubRepo)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button className="w-full gap-2 mb-4">
-                <GitBranch className="h-4 w-4" />
-                Ver en GitHub
-                <ExternalLink className="h-3.5 w-3.5 opacity-70" />
-              </Button>
-            </Link>
-          )}
+          <div className="space-y-3">
+            {/* GitHub link */}
+            {project.githubRepo && project.status === "APPROVED" && (
+              <Link
+                href={repoUrl(project.githubRepo)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button className="w-full gap-2">
+                  <GitBranch className="h-4 w-4" />
+                  Ver en GitHub
+                  <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+                </Button>
+              </Link>
+            )}
+
+            {session?.user && (
+              <BookmarkButton
+                projectId={project.id}
+                initialBookmarked={isBookmarked}
+              />
+            )}
+
+            {session?.user && !isAuthor && (
+              <FollowButton
+                type="project"
+                targetId={project.id}
+                initialFollowing={isFollowingProject}
+                followerCount={projectFollowerCount}
+              />
+            )}
+
+            {session?.user && !isAuthor && (
+              <ReportDialog projectId={project.id} />
+            )}
+          </div>
 
           {/* Metadata card */}
           <div className="rounded-xl border bg-card p-4 space-y-3 text-sm">
@@ -399,6 +520,12 @@ export default async function ProjectPage({
                   {totalComments}
                 </span>
               </div>
+              <div className="flex justify-between">
+                <span>Seguidores</span>
+                <span className="font-medium text-foreground">
+                  {projectFollowerCount}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -407,14 +534,18 @@ export default async function ProjectPage({
             <h3 className="font-semibold">Autores</h3>
             <div className="space-y-2">
               {project.authors.map((a) => (
-                <div key={a.userId} className="flex items-center gap-2">
+                <Link
+                  key={a.userId}
+                  href={`/profile/${a.user.id}`}
+                  className="flex items-center gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-accent"
+                >
                   <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                     {(a.user.name ?? a.user.email ?? "?")[0].toUpperCase()}
                   </div>
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground transition-colors hover:text-foreground">
                     {a.user.name ?? a.user.email}
                   </span>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -427,10 +558,6 @@ export default async function ProjectPage({
             </Button>
           </Link>
 
-          {/* Report */}
-          {session?.user && !isAuthor && (
-            <ReportDialog projectId={project.id} />
-          )}
         </aside>
       </div>
     </main>

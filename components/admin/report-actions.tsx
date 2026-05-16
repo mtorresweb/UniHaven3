@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, Loader2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { dismissReport } from "@/app/actions/admin";
@@ -20,6 +21,7 @@ export function ReportActions({
   removeNote,
 }: ReportActionsProps) {
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   function handleDismiss() {
     startTransition(async () => {
@@ -31,6 +33,7 @@ export function ReportActions({
       }
 
       toast.success("Reporte desestimado.");
+      router.refresh();
     });
   }
 
