@@ -81,50 +81,56 @@ function getExcerpt(text: string, maxLength = 150) {
 }
 
 async function getData() {
-  const [projectCount, userCount, areaCount, recentProjects, announcements, areas] =
-    await Promise.all([
-      prisma.project.count({ where: { status: "APPROVED" } }),
-      prisma.user.count(),
-      prisma.knowledgeArea.count(),
-      prisma.project.findMany({
-        where: { status: "APPROVED" },
-        orderBy: { createdAt: "desc" },
-        take: 3,
-        select: {
-          id: true,
-          title: true,
-          type: true,
-          year: true,
-          coverImage: true,
-          area: { select: { name: true } },
-          authors: {
-            take: 2,
-            select: { user: { select: { name: true } } },
-          },
-          _count: { select: { comments: true } },
+  const [
+    projectCount,
+    userCount,
+    areaCount,
+    recentProjects,
+    announcements,
+    areas,
+  ] = await Promise.all([
+    prisma.project.count({ where: { status: "APPROVED" } }),
+    prisma.user.count(),
+    prisma.knowledgeArea.count(),
+    prisma.project.findMany({
+      where: { status: "APPROVED" },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        year: true,
+        coverImage: true,
+        area: { select: { name: true } },
+        authors: {
+          take: 2,
+          select: { user: { select: { name: true } } },
         },
-      }),
-      prisma.announcement.findMany({
-        orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
-        take: 3,
-        select: {
-          id: true,
-          title: true,
-          body: true,
-          pinned: true,
-          coverImage: true,
-          createdAt: true,
-        },
-      }),
-      prisma.knowledgeArea.findMany({
-        select: {
-          id: true,
-          name: true,
-          _count: { select: { projects: true } },
-        },
-        orderBy: { name: "asc" },
-      }),
-    ]);
+        _count: { select: { comments: true } },
+      },
+    }),
+    prisma.announcement.findMany({
+      orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
+      take: 3,
+      select: {
+        id: true,
+        title: true,
+        body: true,
+        pinned: true,
+        coverImage: true,
+        createdAt: true,
+      },
+    }),
+    prisma.knowledgeArea.findMany({
+      select: {
+        id: true,
+        name: true,
+        _count: { select: { projects: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   return {
     projectCount,
@@ -137,57 +143,93 @@ async function getData() {
 }
 
 export default async function Home() {
-  const { projectCount, userCount, areaCount, recentProjects, announcements, areas } =
-    await getData();
+  const {
+    projectCount,
+    userCount,
+    areaCount,
+    recentProjects,
+    announcements,
+    areas,
+  } = await getData();
 
   return (
     <div className="flex flex-col">
-      <section className="relative overflow-hidden border-b">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,hsl(var(--primary)/0.12),transparent)]" />
-        <div className="container mx-auto flex max-w-4xl flex-col items-center justify-center gap-8 px-4 py-24 text-center">
-          <Badge variant="outline" className="gap-1.5 px-3 py-1">
-            <BookOpen className="h-3.5 w-3.5" />
-            Universidad Popular del Cesar
-          </Badge>
+      <section className="relative overflow-hidden bg-linear-to-b from-primary/15 via-primary/5 to-primary/0">
+        <div className="container mx-auto max-w-6xl px-4 py-20 lg:py-28">
+          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+            <div className="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
+              <Badge variant="outline" className="gap-1.5 px-3 py-1">
+                <BookOpen className="h-3.5 w-3.5" />
+                Universidad Popular del Cesar
+              </Badge>
 
-          <h1 className="text-4xl font-bold leading-tight tracking-tight md:text-6xl">
-            El conocimiento de la <span className="text-primary">UPC</span>, siempre disponible
-          </h1>
+              <h1 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl lg:text-6xl">
+                El conocimiento de la <span className="text-primary">UPC</span>,
+                siempre disponible
+              </h1>
 
-          <p className="max-w-2xl text-lg text-muted-foreground">
-            UniHaven es el repositorio académico oficial donde estudiantes suben sus proyectos
-            de grado, investigaciones y trabajos de aula. Todo respaldado en GitHub, disponible
-            para toda la comunidad.
-          </p>
+              <p className="max-w-xl text-lg text-muted-foreground">
+                UniHaven es el repositorio académico oficial donde estudiantes
+                suben sus proyectos de grado, investigaciones y trabajos de
+                aula. Todo respaldado en GitHub, disponible para toda la
+                comunidad.
+              </p>
 
-          <div className="flex flex-wrap justify-center gap-3">
-            <Button asChild size="lg" className="gap-2">
-              <Link href="/projects">
-                <Search className="h-4 w-4" />
-                Explorar proyectos
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="gap-2">
-              <Link href="/register">
-                <Upload className="h-4 w-4" />
-                Subir mi proyecto
-              </Link>
-            </Button>
+              <div className="flex flex-wrap justify-center gap-3 lg:justify-start">
+                <Button asChild size="lg" className="gap-2">
+                  <Link href="/projects">
+                    <Search className="h-4 w-4" />
+                    Explorar proyectos
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="gap-2">
+                  <Link href="/register">
+                    <Upload className="h-4 w-4" />
+                    Subir mi proyecto
+                  </Link>
+                </Button>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -inset-6 rounded-[2rem] bg-primary/10 blur-3xl"
+              />
+              <div className="relative overflow-hidden rounded-2xl border bg-card shadow-lg">
+                <Image
+                  src="/upc.png"
+                  alt="Universidad Popular del Cesar"
+                  width={1448}
+                  height={1086}
+                  sizes="(min-width: 1024px) 544px, 100vw"
+                  loading="eager"
+                  fetchPriority="high"
+                  className="h-auto w-full"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-8 pt-4 text-sm text-muted-foreground">
+          <div className="mt-16 flex flex-wrap justify-center gap-8 pt-8 text-center text-sm text-muted-foreground">
             <div className="flex flex-col items-center gap-1">
-              <span className="text-3xl font-bold text-foreground">{projectCount}</span>
+              <span className="text-3xl font-bold text-foreground">
+                {projectCount}
+              </span>
               <span>Proyectos publicados</span>
             </div>
             <div className="hidden h-12 w-px self-center bg-border sm:block" />
             <div className="flex flex-col items-center gap-1">
-              <span className="text-3xl font-bold text-foreground">{userCount}</span>
+              <span className="text-3xl font-bold text-foreground">
+                {userCount}
+              </span>
               <span>Miembros registrados</span>
             </div>
             <div className="hidden h-12 w-px self-center bg-border sm:block" />
             <div className="flex flex-col items-center gap-1">
-              <span className="text-3xl font-bold text-foreground">{areaCount}</span>
+              <span className="text-3xl font-bold text-foreground">
+                {areaCount}
+              </span>
               <span>Áreas de conocimiento</span>
             </div>
           </div>
@@ -198,7 +240,9 @@ export default async function Home() {
         <section className="container mx-auto max-w-5xl px-4 py-16">
           <div className="mb-8 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold tracking-tight">Proyectos recientes</h2>
+              <h2 className="text-2xl font-bold tracking-tight">
+                Proyectos recientes
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Lo último publicado en UniHaven
               </p>
@@ -219,7 +263,11 @@ export default async function Home() {
                 .join(", ");
 
               return (
-                <Link key={project.id} href={`/projects/${project.id}`} className="group">
+                <Link
+                  key={project.id}
+                  href={`/projects/${project.id}`}
+                  className="group"
+                >
                   <Card className="h-full overflow-hidden transition-shadow hover:shadow-md">
                     <div className="relative h-36 bg-muted">
                       {project.coverImage ? (
@@ -247,14 +295,18 @@ export default async function Home() {
                       <p className="line-clamp-2 font-semibold leading-snug transition-colors group-hover:text-primary">
                         {project.title}
                       </p>
-                      <p className="line-clamp-1 text-xs text-muted-foreground">{authors}</p>
+                      <p className="line-clamp-1 text-xs text-muted-foreground">
+                        {authors}
+                      </p>
                       <div className="mt-auto flex items-center gap-3 pt-1 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <MessageSquare className="h-3 w-3" />
                           {project._count.comments}
                         </span>
                         <span>{project.year}</span>
-                        {project.area ? <span className="truncate">{project.area.name}</span> : null}
+                        {project.area ? (
+                          <span className="truncate">{project.area.name}</span>
+                        ) : null}
                       </div>
                     </CardContent>
                   </Card>
@@ -272,9 +324,13 @@ export default async function Home() {
               <div>
                 <div className="mb-2 flex items-center gap-2 text-primary">
                   <Megaphone className="h-4 w-4" />
-                  <span className="text-sm font-medium">Novedades destacadas</span>
+                  <span className="text-sm font-medium">
+                    Novedades destacadas
+                  </span>
                 </div>
-                <h2 className="text-2xl font-bold tracking-tight">Anuncios recientes</h2>
+                <h2 className="text-2xl font-bold tracking-tight">
+                  Anuncios recientes
+                </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Comunicados importantes para la comunidad académica.
                 </p>
@@ -311,7 +367,10 @@ export default async function Home() {
                     <CardContent className="space-y-3 p-4">
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         {announcement.pinned ? (
-                          <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
+                          <Badge
+                            variant="outline"
+                            className="gap-1 border-primary/30 text-primary"
+                          >
                             <Pin className="h-3 w-3" />
                             Fijado
                           </Badge>
@@ -338,7 +397,9 @@ export default async function Home() {
       <section className="border-t bg-muted/30 px-4 py-20">
         <div className="container mx-auto max-w-5xl">
           <div className="mb-12 text-center">
-            <h2 className="text-2xl font-bold tracking-tight">Todo en un solo lugar</h2>
+            <h2 className="text-2xl font-bold tracking-tight">
+              Todo en un solo lugar
+            </h2>
             <p className="mt-2 text-muted-foreground">
               Herramientas pensadas para la comunidad académica de la UPC
             </p>
@@ -362,7 +423,8 @@ export default async function Home() {
                 icon: Upload,
                 title: "Sube tu proyecto",
                 desc: "Estudiantes de la UPC pueden subir archivos, definir autores y publicar con un formulario guiado.",
-                color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                color:
+                  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
               },
               {
                 icon: MessageSquare,
@@ -383,13 +445,20 @@ export default async function Home() {
                 color: "bg-pink-500/10 text-pink-600 dark:text-pink-400",
               },
             ].map(({ icon: Icon, title, desc, color }) => (
-              <div key={title} className="flex gap-4 rounded-xl border bg-background p-4">
-                <div className={`h-fit shrink-0 rounded-lg p-2.5 ${color} bg-opacity-10`}>
+              <div
+                key={title}
+                className="flex gap-4 rounded-xl border bg-background p-4"
+              >
+                <div
+                  className={`h-fit shrink-0 rounded-lg p-2.5 ${color} bg-opacity-10`}
+                >
                   <Icon className="h-5 w-5" />
                 </div>
                 <div>
                   <h3 className="mb-1 text-sm font-semibold">{title}</h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{desc}</p>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {desc}
+                  </p>
                 </div>
               </div>
             ))}
@@ -400,7 +469,9 @@ export default async function Home() {
       <section className="border-t px-4 py-20">
         <div className="container mx-auto max-w-5xl">
           <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="text-2xl font-bold tracking-tight">Cómo usar UniHaven</h2>
+            <h2 className="text-2xl font-bold tracking-tight">
+              Cómo usar UniHaven
+            </h2>
             <p className="mt-2 text-muted-foreground">
               Publica y descubre proyectos académicos en tres pasos sencillos.
             </p>
@@ -440,7 +511,8 @@ export default async function Home() {
                 Explora por área de conocimiento
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Encuentra proyectos agrupados por las líneas académicas de la UPC.
+                Encuentra proyectos agrupados por las líneas académicas de la
+                UPC.
               </p>
             </div>
 
@@ -467,10 +539,12 @@ export default async function Home() {
           <div className="rounded-full bg-primary/10 p-4">
             <GraduationCap className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="text-2xl font-bold tracking-tight">¿Eres estudiante de la UPC?</h2>
+          <h2 className="text-2xl font-bold tracking-tight">
+            ¿Eres estudiante de la UPC?
+          </h2>
           <p className="text-muted-foreground">
-            Comparte tu proyecto con la comunidad académica. Regístrate con tu correo institucional
-            y empieza a subir tu trabajo hoy.
+            Comparte tu proyecto con la comunidad académica. Regístrate con tu
+            correo institucional y empieza a subir tu trabajo hoy.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Button asChild size="lg" className="gap-2">

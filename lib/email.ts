@@ -10,7 +10,11 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export async function sendVerificationEmail(to: string, name: string, token: string) {
+export async function sendVerificationEmail(
+  to: string,
+  name: string,
+  token: string,
+) {
   const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}`;
 
   await transporter.sendMail({
@@ -32,6 +36,38 @@ export async function sendVerificationEmail(to: string, name: string, token: str
         <p style="color: #999; font-size: 12px; margin-top: 24px;">
           Si no solicitaste esta cuenta, puedes ignorar este correo.<br/>
           O copia este enlace: ${verifyUrl}
+        </p>
+      </div>
+    `,
+  });
+}
+
+export async function sendPasswordResetEmail(
+  to: string,
+  name: string,
+  token: string,
+) {
+  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`;
+
+  await transporter.sendMail({
+    from: `UniHaven <${process.env.SMTP_USER}>`,
+    to,
+    subject: "Restablece tu contraseña en UniHaven",
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+        <h1 style="font-size: 24px; font-weight: 700; margin-bottom: 8px;">Hola ${name},</h1>
+        <p style="color: #555; margin-bottom: 24px;">
+          Recibimos una solicitud para restablecer la contraseña de tu cuenta en UniHaven.
+          Haz clic en el botón para elegir una nueva contraseña.
+        </p>
+        <a href="${resetUrl}"
+           style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px;
+                  border-radius: 6px; text-decoration: none; font-weight: 600;">
+          Restablecer contraseña
+        </a>
+        <p style="color: #999; font-size: 12px; margin-top: 24px;">
+          Si no solicitaste este cambio, puedes ignorar este correo: tu contraseña seguirá siendo la misma.<br/>
+          O copia este enlace: ${resetUrl}
         </p>
       </div>
     `,

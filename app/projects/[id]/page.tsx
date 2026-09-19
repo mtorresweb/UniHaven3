@@ -18,6 +18,7 @@ import {
   ExternalLink,
   CheckCircle,
   GitBranch,
+  Download,
 } from "lucide-react";
 import { incrementProjectView } from "@/app/actions/projects";
 import { repoUrl } from "@/lib/github";
@@ -358,7 +359,15 @@ export default async function ProjectPage({
           {/* Files */}
           {project.files.length > 0 && (
             <section>
-              <h2 className="mb-3 font-semibold">Archivos</h2>
+              <div className="mb-3 flex items-center justify-between gap-4">
+                <h2 className="font-semibold">Archivos</h2>
+                <Button asChild variant="outline" size="sm" className="h-8">
+                  <a href={`/api/projects/${project.id}/zip`}>
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    Descargar todo
+                  </a>
+                </Button>
+              </div>
               <div className="space-y-2">
                 {project.files.map((f) => (
                   <div
@@ -372,17 +381,28 @@ export default async function ProjectPage({
                         {formatBytes(f.size)} · {f.mimeType}
                       </p>
                     </div>
-                    {project.githubRepo && f.githubPath && (
-                      <Link
-                        href={`https://github.com/${project.githubRepo}/blob/main/${f.githubPath}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Button variant="ghost" size="sm" className="h-8">
-                          <GitBranch className="mr-1.5 h-3.5 w-3.5" />
-                          Ver
+                    {(f.githubPath || f.blobUrl) && (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button asChild variant="ghost" size="sm" className="h-8">
+                          <a
+                            href={`/api/projects/${project.id}/files/${f.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Eye className="mr-1.5 h-3.5 w-3.5" />
+                            Ver
+                          </a>
                         </Button>
-                      </Link>
+                        <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+                          <a
+                            href={`/api/projects/${project.id}/files/${f.id}?download=1`}
+                            title="Descargar"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            <span className="sr-only">Descargar</span>
+                          </a>
+                        </Button>
+                      </div>
                     )}
                   </div>
                 ))}

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "create-admin": "node --env-file=.env scripts/create-admin.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

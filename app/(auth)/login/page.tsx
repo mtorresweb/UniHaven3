@@ -32,7 +32,7 @@ function LoginForm() {
       const result = await loginAction(formData);
       return result;
     },
-    null
+    null,
   );
 
   useEffect(() => {
@@ -104,7 +104,15 @@ function LoginForm() {
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="password">Contraseña</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Contraseña</Label>
+              <Link
+                href="/forgot-password"
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
             <Input
               id="password"
               name="password"
@@ -124,7 +132,10 @@ function LoginForm() {
 
       <CardFooter className="justify-center text-sm text-muted-foreground">
         ¿No tienes cuenta?&nbsp;
-        <Link href="/register" className="text-primary hover:underline font-medium">
+        <Link
+          href="/register"
+          className="text-primary hover:underline font-medium"
+        >
           Regístrate
         </Link>
       </CardFooter>
@@ -135,7 +146,11 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-12">
-      <Suspense fallback={<div className="w-full max-w-md animate-pulse rounded-xl bg-muted h-96" />}>
+      <Suspense
+        fallback={
+          <div className="w-full max-w-md animate-pulse rounded-xl bg-muted h-96" />
+        }
+      >
         <LoginForm />
       </Suspense>
     </div>

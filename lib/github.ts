@@ -206,3 +206,53 @@ ${opts.license}
 `;
   return Buffer.from(md, "utf-8");
 }
+
+/** Fetch a file's raw content from a repo (works for private repos too). */
+export async function fetchRepoFile(
+  repo: string,
+  path: string
+): Promise<Response> {
+  const [owner, repoName] = repo.split("/");
+  const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+
+  return fetch(
+    `https://api.github.com/repos/${owner}/${repoName}/contents/${encodedPath}`,
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+        Accept: "application/vnd.github.raw",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      cache: "no-store",
+    }
+  );
+}
+
+/**
+ * Lista las rutas de archivos (blobs) de un repo en una sola llamada.
+ * Devuelve `null` si el arbol viene truncado (repos enormes), en cuyo caso
+ * no es posible validar contra el listado.
+ */
+export async function listRepoPaths(
+  repo: string,
+  branch = "main"
+): Promise<Set<string> | null> {
+  const [owner, repoName] = repo.split("/");
+
+  const { data } = await octokit.rest.git.getTree({
+    owner,
+    repo: repoName,
+    tree_sha: branch,
+    recursive: "1",
+  });
+
+  if (data.truncated) {
+    return null;
+  }
+
+  return new Set(
+    data.tree
+      .filter((entry) => entry.type === "blob" && entry.path)
+      .map((entry) => entry.path as string)
+  );
+}

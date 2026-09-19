@@ -84,7 +84,7 @@ Diseñar e implementar una plataforma web que permita a los estudiantes de la Un
 | ID | Requisito |
 |---|---|
 | **RF-01** | El sistema debe permitir el registro de usuarios mediante correo electrónico y contraseña, con verificación por email antes de activar la cuenta. |
-| **RF-02** | El sistema debe permitir el inicio de sesión mediante OAuth con Google, restringiendo el registro institucional a cuentas `@unicesar.edu.co`. |
+| **RF-02** | El sistema debe permitir el inicio de sesión mediante OAuth con Google. |
 | **RF-03** | Los usuarios con rol `UPC_STUDENT` deben poder subir proyectos completando un formulario multi-paso con título, resumen, tipo, área, palabras clave, autores, año y archivos. |
 | **RF-04** | Al crear un proyecto, el sistema debe generar automáticamente un repositorio privado en GitHub bajo la cuenta configurada, subir los archivos y registrar el SHA del commit. |
 | **RF-05** | El sistema debe permitir a los administradores aprobar, rechazar, retirar y reinstaurar proyectos, controlando su visibilidad pública. |
