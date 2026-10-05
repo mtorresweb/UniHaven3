@@ -135,10 +135,13 @@ export async function createProject(
   const fileRecords: { name: string; path: string; mimeType: string; size: number }[] = [];
   for (const f of rawFiles) {
     if (f.size === 0) continue;
-    const buf = Buffer.from(await f.arrayBuffer());
     const safeName = f.name.replace(/[^a-zA-Z0-9._\-]/g, "_");
     const repoPath = `files/${safeName}`;
-    gitFiles.push({ path: repoPath, content: buf });
+    gitFiles.push({
+      path: repoPath,
+      // Se lee al subirlo: evita tener todos los archivos en memoria a la vez.
+      content: async () => Buffer.from(await f.arrayBuffer()),
+    });
     fileRecords.push({ name: f.name, path: repoPath, mimeType: f.type || "application/octet-stream", size: f.size });
   }
 
@@ -386,12 +389,10 @@ export async function uploadProjectVersion(projectId: string, formData: FormData
   let commitSha: string | undefined;
   if (project.githubRepo) {
     try {
-      const fileBuffers: GitHubFile[] = await Promise.all(
-        validFiles.map(async (f) => ({
-          path: f.name,
-          content: Buffer.from(await f.arrayBuffer()),
-        }))
-      );
+      const fileBuffers: GitHubFile[] = validFiles.map((f) => ({
+        path: f.name,
+        content: async () => Buffer.from(await f.arrayBuffer()),
+      }));
       commitSha = await commitFilesToRepo(
         project.githubRepo,
         fileBuffers,

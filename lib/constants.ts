@@ -51,12 +51,16 @@ export type ReportCategory =
 /**
  * Límites de subida de archivos. Viven aquí para que el formulario (cliente) y
  * las server actions usen exactamente los mismos valores.
+ *
+ * Ajustados para instancias con poca RAM (Render free: 512 MB): la API de
+ * GitHub exige base64, así que subir un archivo usa ~3.6x su tamaño de forma
+ * transitoria. Si subes de plan, estos números se pueden aumentar.
  */
 export const UPLOAD_LIMITS = {
   /** Tamaño máximo por archivo. */
-  maxFileSize: 25 * 1024 * 1024,
+  maxFileSize: 15 * 1024 * 1024,
   /** Tamaño máximo del conjunto de archivos. */
-  maxTotalSize: 50 * 1024 * 1024,
+  maxTotalSize: 30 * 1024 * 1024,
 } as const;
 
 /** Dominio institucional de la UPC. */

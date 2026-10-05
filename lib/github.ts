@@ -6,7 +6,11 @@ const OWNER = process.env.GITHUB_USERNAME!;
 
 export type GitHubFile = {
   path: string; // path inside repo, e.g. "documento-principal.pdf"
-  content: Buffer; // raw file buffer
+  /**
+   * Contenido del archivo, o una función que lo carga cuando hace falta.
+   * Usar la función evita mantener todos los archivos en memoria a la vez.
+   */
+  content: Buffer | (() => Promise<Buffer>);
   encoding?: "base64" | "utf-8";
 };
 
@@ -53,14 +57,17 @@ export async function commitFilesToRepo(
 ): Promise<string> {
   const [owner, repoName] = repo.split("/");
 
-  // 1. Crear los blobs de a uno: así solo hay un archivo codificado en
-  //    base64 en memoria a la vez (con Promise.all se materializaban todos).
+  // 1. Crear los blobs de a uno, leyendo el contenido en ese momento: así no
+  //    coinciden en memoria ni todos los archivos ni todos los base64.
   const blobShas: string[] = [];
   for (const file of files) {
+    const content =
+      typeof file.content === "function" ? await file.content() : file.content;
+
     const { data } = await octokit.rest.git.createBlob({
       owner,
       repo: repoName,
-      content: file.content.toString("base64"),
+      content: content.toString("base64"),
       encoding: "base64",
     });
     blobShas.push(data.sha);

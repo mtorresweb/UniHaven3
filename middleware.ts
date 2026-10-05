@@ -30,6 +30,9 @@ export default auth((req) => {
     if (role !== Role.ADMIN) return NextResponse.redirect(new URL("/", nextUrl));
   }
 
+  // Nota: /projects/new queda fuera del matcher, así que este bloque no se
+  // ejecuta para esa ruta (la propia página valida sesión y rol). Se mantiene
+  // como red de seguridad por si algún día vuelve a entrar al matcher.
   if (isUpcOnlyRoute) {
     if (!isLoggedIn) {
       return NextResponse.redirect(
@@ -45,6 +48,10 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|public).*)"],
+  // `projects/new` se excluye a propósito: cuando el proxy corre, Next clona
+  // el cuerpo de la petición en memoria (para poder leerlo dos veces), y esa
+  // ruta es la que recibe las subidas. Sin el proxy ese cuerpo gigante no se
+  // duplica. La página ya valida sesión y rol por su cuenta.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|public|projects/new).*)"],
 };
 
