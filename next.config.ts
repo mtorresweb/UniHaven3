@@ -2,11 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
+    // El proxy (middleware.ts) bufferea el body en memoria para poder leerlo dos
+    // veces, con un tope por defecto de 10 MB que truncaba el multipart de la
+    // subida (=> "Unexpected end of form").
+    proxyClientMaxBodySize: "210mb",
     serverActions: {
-      // El formulario de subida envía los archivos al Server Action createProject
-      // (límites de la acción: 50 MB por archivo y 200 MB en total), por encima
-      // del límite por defecto de 1 MB.
-      bodySizeLimit: "200mb",
+      // Los archivos van al Server Action createProject, que valida 50 MB por
+      // archivo y 200 MB en total (límite por defecto: 1 MB).
+      bodySizeLimit: "210mb",
     },
   },
   images: {

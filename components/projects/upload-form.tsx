@@ -353,13 +353,13 @@ export function UploadForm({ areas }: { areas: Area[] }) {
               onClick={() => coverInputRef.current?.click()}
             >
               {coverPreview ? (
-                <div className="relative w-full">
+                <div className="relative h-36 w-full overflow-hidden rounded-lg">
                   <Image
                     src={coverPreview}
                     alt="Portada"
-                    width={800}
-                    height={200}
-                    className="mx-auto h-36 w-full rounded-lg object-cover"
+                    fill
+                    sizes="(min-width: 768px) 640px, 100vw"
+                    className="object-cover"
                   />
                   <button
                     type="button"
@@ -545,13 +545,15 @@ export function UploadForm({ areas }: { areas: Area[] }) {
 
           <div className="rounded-xl border bg-muted/30 p-5 space-y-3 mb-6">
             {coverPreview && (
-              <Image
-                src={coverPreview}
-                alt="Portada"
-                width={800}
-                height={128}
-                className="h-32 w-full rounded-lg object-cover mb-2"
-              />
+              <div className="relative mb-2 h-32 w-full overflow-hidden rounded-lg">
+                <Image
+                  src={coverPreview}
+                  alt="Portada"
+                  fill
+                  sizes="(min-width: 768px) 640px, 100vw"
+                  className="object-cover"
+                />
+              </div>
             )}
             <div className="flex items-center gap-2 text-sm text-primary font-semibold">
               <CheckCircle className="h-4 w-4" /> Listo para publicar
