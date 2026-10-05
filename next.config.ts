@@ -5,11 +5,12 @@ const nextConfig: NextConfig = {
     // El proxy (middleware.ts) bufferea el body en memoria para poder leerlo dos
     // veces, con un tope por defecto de 10 MB que truncaba el multipart de la
     // subida (=> "Unexpected end of form").
-    proxyClientMaxBodySize: "210mb",
+    proxyClientMaxBodySize: "60mb",
     serverActions: {
-      // Los archivos van al Server Action createProject, que valida 50 MB por
-      // archivo y 200 MB en total (límite por defecto: 1 MB).
-      bodySizeLimit: "210mb",
+      // Los archivos van al Server Action createProject, que valida 25 MB por
+      // archivo y 50 MB en total. Se deja un poco por encima para que se vea
+      // su mensaje de validacion en vez de un error de truncado.
+      bodySizeLimit: "60mb",
     },
   },
   images: {

@@ -7,6 +7,9 @@ import { Role } from "@/lib/constants";
  * Only validates the JWT already stored in the cookie.
  */
 export const authConfig = {
+  // En hosts distintos a Vercel (Render, etc.) Auth.js necesita confiar en el
+  // host, o lanza UntrustedHost con el dominio propio.
+  trustHost: true,
   pages: {
     signIn: "/login",
     error: "/login",

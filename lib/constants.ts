@@ -48,3 +48,25 @@ export const ReportCategory = {
 export type ReportCategory =
   (typeof ReportCategory)[keyof typeof ReportCategory];
 
+/**
+ * Límites de subida de archivos. Viven aquí para que el formulario (cliente) y
+ * las server actions usen exactamente los mismos valores.
+ */
+export const UPLOAD_LIMITS = {
+  /** Tamaño máximo por archivo. */
+  maxFileSize: 25 * 1024 * 1024,
+  /** Tamaño máximo del conjunto de archivos. */
+  maxTotalSize: 50 * 1024 * 1024,
+} as const;
+
+/** Dominio institucional de la UPC. */
+export const UPC_EMAIL_DOMAIN = "unicesar.edu.co";
+
+/**
+ * Los correos fuera del dominio institucional no pueden pasar de GENERAL,
+ * ni al registrarse ni desde el panel de administración.
+ */
+export function isUpcEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return email.toLowerCase().endsWith(`@${UPC_EMAIL_DOMAIN}`);
+}

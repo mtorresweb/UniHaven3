@@ -1,5 +1,5 @@
 import "server-only";
-import { deflateRawSync } from "node:zlib";
+import * as zlib from "node:zlib";
 
 /**
  * Generador mínimo de archivos ZIP (formato estándar), sin dependencias.
@@ -15,8 +15,14 @@ export type ZipEntry = {
   load: () => Promise<Uint8Array>;
 };
 
-// CRC-32 (polinomio 0xEDB88320) calculado a mano para no depender de
-// zlib.crc32, que sólo existe en Node >= 22.
+// zlib.crc32 es nativo y muy rápido (Node >= 22.2). Si no está disponible,
+// se usa la implementación en JS de abajo.
+const nativeCrc32 =
+  typeof (zlib as { crc32?: unknown }).crc32 === "function"
+    ? (zlib.crc32 as (data: Uint8Array) => number)
+    : undefined;
+
+// CRC-32 (polinomio 0xEDB88320), usado sólo como respaldo.
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
   for (let i = 0; i < 256; i++) {
@@ -29,7 +35,7 @@ const CRC_TABLE = (() => {
   return table;
 })();
 
-function crc32(data: Uint8Array): number {
+function crc32Js(data: Uint8Array): number {
   let c = 0xffffffff;
   for (let i = 0; i < data.length; i++) {
     c = CRC_TABLE[(c ^ data[i]) & 0xff] ^ (c >>> 8);
@@ -37,11 +43,29 @@ function crc32(data: Uint8Array): number {
   return (c ^ 0xffffffff) >>> 0;
 }
 
+function crc32(data: Uint8Array): number {
+  return nativeCrc32 ? nativeCrc32(data) : crc32Js(data);
+}
+
+// deflateRaw asíncrono: corre en el threadpool de libuv, así que no bloquea el
+// event loop (importante en instancias de 1 vCPU o menos).
+function deflateRawAsync(data: Uint8Array): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    zlib.deflateRaw(data, (error, result) =>
+      error ? reject(error) : resolve(result),
+    );
+  });
+}
+
 function dosDateTime(date: Date) {
   const time =
-    (date.getHours() << 11) | (date.getMinutes() << 5) | (date.getSeconds() >> 1);
+    (date.getHours() << 11) |
+    (date.getMinutes() << 5) |
+    (date.getSeconds() >> 1);
   const day =
-    ((date.getFullYear() - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
+    ((date.getFullYear() - 1980) << 9) |
+    ((date.getMonth() + 1) << 5) |
+    date.getDate();
   return { time, day };
 }
 
@@ -54,7 +78,7 @@ const METHOD_DEFLATE = 8;
 
 export function createZipStream(
   entries: ZipEntry[],
-  modified: Date = new Date()
+  modified: Date = new Date(),
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   const { time, day } = dosDateTime(modified);
@@ -73,7 +97,7 @@ export function createZipStream(
         const nameBytes = encoder.encode(entry.name);
 
         const crc = crc32(data);
-        const deflated = deflateRawSync(data);
+        const deflated = await deflateRawAsync(data);
         const useDeflate = deflated.length < data.length;
         const payload = useDeflate ? deflated : data;
         const method = useDeflate ? METHOD_DEFLATE : METHOD_STORE;

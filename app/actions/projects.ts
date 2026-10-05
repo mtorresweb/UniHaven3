@@ -13,10 +13,14 @@ import {
 import { put } from "@vercel/blob";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Role } from "@/lib/constants";
+import { Role, UPLOAD_LIMITS } from "@/lib/constants";
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB per file
-const MAX_TOTAL_SIZE = 200 * 1024 * 1024; // 200 MB total
+// Topes para instancias con poca RAM. Viven en lib/constants para
+// compartirlos con el formulario de subida.
+const MAX_FILE_SIZE = UPLOAD_LIMITS.maxFileSize;
+const MAX_TOTAL_SIZE = UPLOAD_LIMITS.maxTotalSize;
+const MAX_FILE_MB = MAX_FILE_SIZE / 1024 / 1024;
+const MAX_TOTAL_MB = MAX_TOTAL_SIZE / 1024 / 1024;
 
 export type CreateProjectState = {
   error?: string;
@@ -65,12 +69,12 @@ export async function createProject(
   let totalSize = 0;
   for (const f of rawFiles) {
     if (f.size > MAX_FILE_SIZE) {
-      fieldErrors.files = `El archivo "${f.name}" supera el límite de 50 MB.`;
+      fieldErrors.files = `El archivo "${f.name}" supera el límite de ${MAX_FILE_MB} MB.`;
     }
     totalSize += f.size;
   }
   if (totalSize > MAX_TOTAL_SIZE) {
-    fieldErrors.files = "El tamaño total de los archivos supera 200 MB.";
+    fieldErrors.files = `El tamaño total de los archivos supera ${MAX_TOTAL_MB} MB.`;
   }
 
   if (Object.keys(fieldErrors).length) return { fieldErrors };
@@ -365,6 +369,16 @@ export async function uploadProjectVersion(projectId: string, formData: FormData
   const validFiles = rawFiles.filter((f) => f.size > 0);
 
   if (validFiles.length === 0) return { error: "Debes subir al menos un archivo." };
+
+  const oversized = validFiles.find((f) => f.size > MAX_FILE_SIZE);
+  if (oversized) {
+    return { error: `El archivo "${oversized.name}" supera el límite de ${MAX_FILE_MB} MB.` };
+  }
+
+  const totalSize = validFiles.reduce((sum, f) => sum + f.size, 0);
+  if (totalSize > MAX_TOTAL_SIZE) {
+    return { error: `El tamaño total de los archivos supera ${MAX_TOTAL_MB} MB.` };
+  }
 
   const nextNumber = (project.versions[0]?.number ?? 0) + 1;
 

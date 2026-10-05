@@ -53,17 +53,18 @@ export async function commitFilesToRepo(
 ): Promise<string> {
   const [owner, repoName] = repo.split("/");
 
-  // 1. Create blobs for each file
-  const blobs = await Promise.all(
-    files.map((f) =>
-      octokit.rest.git.createBlob({
-        owner,
-        repo: repoName,
-        content: f.content.toString("base64"),
-        encoding: "base64",
-      })
-    )
-  );
+  // 1. Crear los blobs de a uno: así solo hay un archivo codificado en
+  //    base64 en memoria a la vez (con Promise.all se materializaban todos).
+  const blobShas: string[] = [];
+  for (const file of files) {
+    const { data } = await octokit.rest.git.createBlob({
+      owner,
+      repo: repoName,
+      content: file.content.toString("base64"),
+      encoding: "base64",
+    });
+    blobShas.push(data.sha);
+  }
 
   // 2. Get or create base tree SHA
   let baseTreeSha: string | undefined;
@@ -94,7 +95,7 @@ export async function commitFilesToRepo(
       path: f.path,
       mode: "100644" as const,
       type: "blob" as const,
-      sha: blobs[i].data.sha,
+      sha: blobShas[i],
     })),
   });
 

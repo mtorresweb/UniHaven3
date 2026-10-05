@@ -30,6 +30,7 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { cn, formatBytes } from "@/lib/utils";
+import { UPLOAD_LIMITS } from "@/lib/constants";
 import Image from "next/image";
 
 type Area = { id: string; name: string };
@@ -45,7 +46,8 @@ const LICENSE_OPTIONS = [
   "Todos los derechos reservados",
 ];
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const MAX_FILE_SIZE = UPLOAD_LIMITS.maxFileSize;
+const MAX_TOTAL_SIZE = UPLOAD_LIMITS.maxTotalSize;
 const ALLOWED_EXTENSIONS = [
   ".pdf", ".doc", ".docx", ".xls", ".xlsx",
   ".ppt", ".pptx", ".zip", ".txt", ".png", ".jpg", ".jpeg", ".svg",
@@ -140,6 +142,14 @@ export function UploadForm({ areas }: { areas: Area[] }) {
       setMetaErrors((e) => ({ ...e, files: "Debes subir al menos un archivo." }));
       return;
     }
+    const total = filesRef.current.reduce((sum, f) => sum + f.size, 0);
+    if (total > MAX_TOTAL_SIZE) {
+      setMetaErrors((e) => ({
+        ...e,
+        files: `El tamaño total (${formatBytes(total)}) supera el límite de ${formatBytes(MAX_TOTAL_SIZE)}. Quita algún archivo para continuar.`,
+      }));
+      return;
+    }
     setMetaErrors((e) => { const n = { ...e }; delete n.files; return n; });
     setStep(2);
   }
@@ -153,13 +163,29 @@ export function UploadForm({ areas }: { areas: Area[] }) {
     (incoming: FileList | null) => {
       if (!incoming) return;
       const existing = new Set(filesRef.current.map((f) => f.name));
+      const rejected: string[] = [];
+
       Array.from(incoming).forEach((f) => {
-        if (!existing.has(f.name) && f.size > 0 && f.size <= MAX_FILE_SIZE) {
-          filesRef.current.push(f);
-          existing.add(f.name);
+        if (f.size === 0 || existing.has(f.name)) return;
+        if (f.size > MAX_FILE_SIZE) {
+          rejected.push(`"${f.name}" (${formatBytes(f.size)})`);
+          return;
         }
+        filesRef.current.push(f);
+        existing.add(f.name);
       });
+
       syncDisplayList(filesRef.current);
+
+      setMetaErrors((e) => {
+        const next = { ...e };
+        if (rejected.length > 0) {
+          next.files = `No se agregaron ${rejected.length === 1 ? "este archivo" : "estos archivos"} por superar ${formatBytes(MAX_FILE_SIZE)}: ${rejected.join(", ")}.`;
+        } else {
+          delete next.files;
+        }
+        return next;
+      });
       // Also sync the live DOM input if mounted
       if (fileInputRef.current) {
         const dt = new DataTransfer();
@@ -450,7 +476,8 @@ export function UploadForm({ areas }: { areas: Area[] }) {
             </div>
             <div>
               <p className="font-semibold">Arrastra los archivos aquí</p>
-              <p className="text-sm text-muted-foreground">o haz clic para seleccionar — máx. 50 MB por archivo</p>
+              <p className="text-sm text-muted-foreground">o haz clic para seleccionar — máx. {formatBytes(MAX_FILE_SIZE)} por archivo y{" "}
+                {formatBytes(MAX_TOTAL_SIZE)} en total</p>
             </div>
             <p className="text-xs text-muted-foreground">PDF, Word, Excel, PowerPoint, ZIP, imágenes, texto</p>
           </div>
@@ -468,8 +495,19 @@ export function UploadForm({ areas }: { areas: Area[] }) {
           {fileList.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm font-medium">
-                {fileList.length} archivo{fileList.length !== 1 ? "s" : ""} — Total: {formatBytes(totalSize)}
+                {fileList.length} archivo{fileList.length !== 1 ? "s" : ""} — Total:{" "}
+                <span className={totalSize > MAX_TOTAL_SIZE ? "text-destructive" : undefined}>
+                  {formatBytes(totalSize)}
+                </span>
+                <span className="font-normal text-muted-foreground">
+                  {" "}de {formatBytes(MAX_TOTAL_SIZE)} máximo
+                </span>
               </p>
+              {totalSize > MAX_TOTAL_SIZE && (
+                <p className="text-xs text-destructive">
+                  Superas el límite total permitido: quita archivos para poder continuar.
+                </p>
+              )}
               {fileList.map((f) => (
                 <Card key={f.name} className="py-0">
                   <CardContent className="flex items-center gap-3 p-3">
@@ -494,7 +532,11 @@ export function UploadForm({ areas }: { areas: Area[] }) {
             <Button type="button" variant="outline" onClick={() => setStep(0)}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
             </Button>
-            <Button type="button" onClick={goToStep2} disabled={fileList.length === 0}>
+            <Button
+              type="button"
+              onClick={goToStep2}
+              disabled={fileList.length === 0 || totalSize > MAX_TOTAL_SIZE}
+            >
               Siguiente <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>

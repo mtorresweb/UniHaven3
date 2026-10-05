@@ -23,14 +23,29 @@ type UserRole = keyof typeof ROLE_LABELS;
 interface UserRoleSelectProps {
   userId: string;
   currentRole: UserRole;
+  /** Los correos externos quedan fijos en GENERAL. */
+  isUpc: boolean;
 }
 
 export function UserRoleSelect({
   userId,
   currentRole,
+  isUpc,
 }: UserRoleSelectProps) {
   const [value, setValue] = useState<UserRole>(currentRole);
   const [isPending, startTransition] = useTransition();
+
+  // Los correos externos no pueden cambiar de rol.
+  if (!isUpc) {
+    return (
+      <span
+        className="text-xs text-muted-foreground"
+        title="Los correos fuera de unicesar.edu.co deben permanecer como General."
+      >
+        Rol fijo (correo externo)
+      </span>
+    );
+  }
 
   function handleChange(nextRole: UserRole) {
     if (nextRole === value) {

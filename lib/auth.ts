@@ -6,9 +6,7 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { authConfig } from "@/auth.config";
-import { Role } from "@/lib/constants";
-
-const UPC_DOMAIN = "unicesar.edu.co";
+import { isUpcEmail, Role } from "@/lib/constants";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -20,9 +18,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       profile(profile) {
-        const role = profile.email?.endsWith(`@${UPC_DOMAIN}`)
-          ? Role.UPC_STUDENT
-          : Role.GENERAL;
+        const role = isUpcEmail(profile.email) ? Role.UPC_STUDENT : Role.GENERAL;
         return {
           id: profile.sub,
           name: profile.name,

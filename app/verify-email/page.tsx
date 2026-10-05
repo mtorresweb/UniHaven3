@@ -11,10 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Role } from "@/lib/constants";
+import { isUpcEmail, Role } from "@/lib/constants";
 import prisma from "@/lib/prisma";
-
-const UPC_DOMAIN = "@unicesar.edu.co";
 
 type VerifyEmailPageProps = {
   searchParams: Promise<{ token?: string | string[] }>;
@@ -100,9 +98,7 @@ export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageP
   const existing = await prisma.user.findUnique({ where: { email: pending.email } });
 
   if (!existing) {
-    const role = pending.email.endsWith(UPC_DOMAIN)
-      ? Role.UPC_STUDENT
-      : Role.GENERAL;
+    const role = isUpcEmail(pending.email) ? Role.UPC_STUDENT : Role.GENERAL;
 
     await prisma.user.create({
       data: {
