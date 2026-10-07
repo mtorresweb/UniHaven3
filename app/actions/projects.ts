@@ -13,7 +13,11 @@ import {
 import { put } from "@vercel/blob";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Role, UPLOAD_LIMITS } from "@/lib/constants";
+import { canUploadProjects, Role, UPLOAD_LIMITS } from "@/lib/constants";
+import {
+  notifyAdmins,
+  triggerUnreadNotificationCount,
+} from "@/lib/notifications";
 
 // Topes para instancias con poca RAM. Viven en lib/constants para
 // compartirlos con el formulario de subida.
@@ -28,17 +32,22 @@ export type CreateProjectState = {
   projectId?: string;
 };
 
+export type CoAuthor = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+};
+
 export async function createProject(
   _prev: CreateProjectState,
-  formData: FormData
+  formData: FormData,
 ): Promise<CreateProjectState> {
   const session = await auth();
-  if (
-    !session?.user ||
-    (session.user.role !== Role.UPC_STUDENT &&
-      session.user.role !== Role.ADMIN)
-  ) {
-    return { error: "No autorizado. Solo estudiantes UPC pueden subir proyectos." };
+  if (!session?.user || !canUploadProjects(session.user.role)) {
+    return {
+      error: "No autorizado. Solo estudiantes UPC pueden subir proyectos.",
+    };
   }
 
   // ── Metadata ──────────────────────────────────────────────────────────────
@@ -51,9 +60,12 @@ export async function createProject(
   const license = (formData.get("license") as string) || "CC BY 4.0";
 
   const fieldErrors: Record<string, string> = {};
-  if (!title || title.length < 5) fieldErrors.title = "El título debe tener al menos 5 caracteres.";
-  if (!abstract || abstract.length < 50) fieldErrors.abstract = "El resumen debe tener al menos 50 caracteres.";
-  if (!["THESIS", "RESEARCH", "CLASSROOM"].includes(type)) fieldErrors.type = "Tipo inválido.";
+  if (!title || title.length < 5)
+    fieldErrors.title = "El título debe tener al menos 5 caracteres.";
+  if (!abstract || abstract.length < 50)
+    fieldErrors.abstract = "El resumen debe tener al menos 50 caracteres.";
+  if (!["THESIS", "RESEARCH", "CLASSROOM"].includes(type))
+    fieldErrors.type = "Tipo inválido.";
   if (!areaId) fieldErrors.areaId = "Selecciona un área de conocimiento.";
   const year = parseInt(yearStr, 10);
   if (isNaN(year) || year < 1990 || year > new Date().getFullYear() + 1) {
@@ -79,15 +91,43 @@ export async function createProject(
 
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
+  // ── Co-autores (opcionales) ──────────────────────────────────────────────
+  const coauthorIds = Array.from(
+    new Set(
+      (formData.getAll("coauthors") as string[])
+        .map((id) => id.trim())
+        .filter((id) => id && id !== session.user.id),
+    ),
+  );
+
+  const coauthors: { id: string; name: string }[] = [];
+  for (const id of coauthorIds) {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, name: true, email: true, role: true },
+    });
+    if (!user || (user.role !== Role.ADMIN && user.role !== Role.UPC_STUDENT)) {
+      return {
+        error:
+          "Solo puedes añadir como coautores a usuarios registrados con rol de administrador o estudiante UPC.",
+      };
+    }
+    coauthors.push({ id: user.id, name: user.name ?? user.email });
+  }
+
   // ── Cover image → Vercel Blob ─────────────────────────────────────────────
   const coverFile = formData.get("coverImage") as File | null;
   let coverImageUrl: string | undefined;
   if (coverFile && coverFile.size > 0) {
     const ext = coverFile.name.split(".").pop() ?? "jpg";
-    const blob = await put(`covers/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`, coverFile, {
-      access: "public",
-      contentType: coverFile.type || "image/jpeg",
-    });
+    const blob = await put(
+      `covers/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`,
+      coverFile,
+      {
+        access: "public",
+        contentType: coverFile.type || "image/jpeg",
+      },
+    );
     coverImageUrl = blob.url;
   }
 
@@ -96,20 +136,29 @@ export async function createProject(
   if (!area) return { error: "Área de conocimiento no encontrada." };
 
   const keywords = keywordsRaw
-    ? keywordsRaw.split(",").map((k) => k.trim()).filter(Boolean)
+    ? keywordsRaw
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean)
     : [];
 
   // ── GitHub: create repo ───────────────────────────────────────────────────
   const repoName = buildRepoName(type, title, year);
   let fullRepo: string;
   try {
-    fullRepo = await createProjectRepo(repoName, `${title} — ${area.name} (${year})`);
+    fullRepo = await createProjectRepo(
+      repoName,
+      `${title} — ${area.name} (${year})`,
+    );
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     // Handle duplicate repo names gracefully
     if (msg.includes("already exists") || msg.includes("name already exists")) {
       const ts = Date.now().toString(36);
-      fullRepo = await createProjectRepo(`${repoName}-${ts}`, `${title} — ${area.name} (${year})`);
+      fullRepo = await createProjectRepo(
+        `${repoName}-${ts}`,
+        `${title} — ${area.name} (${year})`,
+      );
     } else {
       return { error: `Error creando repositorio GitHub: ${msg}` };
     }
@@ -125,14 +174,22 @@ export async function createProject(
     type,
     area: area.name,
     year,
-    authors: [session.user.name ?? session.user.email ?? "Autor desconocido"],
+    authors: [
+      session.user.name ?? session.user.email ?? "Autor desconocido",
+      ...coauthors.map((c) => c.name),
+    ],
     license,
     keywords,
   });
   gitFiles.push({ path: "README.md", content: readmeBuffer });
 
   // Actual uploaded files — placed in /files/ subfolder
-  const fileRecords: { name: string; path: string; mimeType: string; size: number }[] = [];
+  const fileRecords: {
+    name: string;
+    path: string;
+    mimeType: string;
+    size: number;
+  }[] = [];
   for (const f of rawFiles) {
     if (f.size === 0) continue;
     const safeName = f.name.replace(/[^a-zA-Z0-9._\-]/g, "_");
@@ -142,7 +199,12 @@ export async function createProject(
       // Se lee al subirlo: evita tener todos los archivos en memoria a la vez.
       content: async () => Buffer.from(await f.arrayBuffer()),
     });
-    fileRecords.push({ name: f.name, path: repoPath, mimeType: f.type || "application/octet-stream", size: f.size });
+    fileRecords.push({
+      name: f.name,
+      path: repoPath,
+      mimeType: f.type || "application/octet-stream",
+      size: f.size,
+    });
   }
 
   // ── GitHub: commit files ──────────────────────────────────────────────────
@@ -151,27 +213,23 @@ export async function createProject(
     commitSha = await commitFilesToRepo(
       fullRepo,
       gitFiles,
-      `feat: subida inicial — ${title} (v1)`
+      `feat: subida inicial — ${title} (v1)`,
     );
   } catch (e: unknown) {
-    return { error: `Error subiendo archivos a GitHub: ${e instanceof Error ? e.message : String(e)}` };
-  }
-
-  // ── GitHub: make repo public immediately ──────────────────────────────────
-  try {
-    const { makeRepoPublic } = await import("@/lib/github");
-    await makeRepoPublic(fullRepo);
-  } catch {
-    // Non-fatal — repo stays private, project still saved
+    return {
+      error: `Error subiendo archivos a GitHub: ${e instanceof Error ? e.message : String(e)}`,
+    };
   }
 
   // ── Prisma: save project (sequential inserts — HTTP mode has no transactions) ──
+  // El proyecto nace en "Requiere revisión" y el repo queda privado hasta que
+  // un administrador lo apruebe manualmente.
   const project = await prisma.project.create({
     data: {
       title,
       abstract,
       type: type as "THESIS" | "RESEARCH" | "CLASSROOM",
-      status: "APPROVED",
+      status: "NEEDS_REVISION",
       year,
       license,
       keywords,
@@ -184,6 +242,24 @@ export async function createProject(
   await prisma.projectAuthor.create({
     data: { projectId: project.id, userId: session.user.id },
   });
+
+  for (const coauthor of coauthors) {
+    await prisma.projectAuthor.create({
+      data: { projectId: project.id, userId: coauthor.id },
+    });
+  }
+
+  // Notifica a cada coautor que fue añadido al proyecto.
+  for (const coauthor of coauthors) {
+    await prisma.notification.create({
+      data: {
+        userId: coauthor.id,
+        type: "COAUTHOR_ADDED",
+        reference: { projectId: project.id, title },
+      },
+    });
+    await triggerUnreadNotificationCount(coauthor.id);
+  }
 
   // createMany uses implicit transactions too — use individual creates instead
   for (const fr of fileRecords) {
@@ -207,15 +283,53 @@ export async function createProject(
     },
   });
 
+  // Avisa a los administradores para que revisen el nuevo proyecto.
+  await notifyAdmins("PROJECT_NEEDS_REVISION", {
+    projectId: project.id,
+    title,
+    note: "Nuevo proyecto pendiente de aprobación.",
+  });
+
   revalidatePath("/projects");
+  revalidatePath("/admin/review");
   redirect(`/projects/${project.id}?submitted=1`);
+}
+
+// ── Search co-authors (admins or UPC students only) ───────────────────────
+export async function searchCoAuthors(query: string): Promise<CoAuthor[]> {
+  const session = await auth();
+  if (!session?.user || !canUploadProjects(session.user.role)) return [];
+
+  const q = query.trim();
+  if (q.length < 2) return [];
+
+  const users = await prisma.user.findMany({
+    where: {
+      id: { not: session.user.id },
+      role: { in: [Role.ADMIN, Role.UPC_STUDENT] },
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, name: true, email: true, role: true },
+    take: 10,
+    orderBy: { name: "asc" },
+  });
+
+  return users.map((u) => ({
+    id: u.id,
+    name: u.name ?? u.email,
+    email: u.email,
+    role: u.role,
+  }));
 }
 
 // ── Report a project ───────────────────────────────────────────────────────
 export async function reportProject(
   projectId: string,
   category: "INAPPROPRIATE" | "PLAGIARISM" | "FALSE_INFO" | "OTHER",
-  description: string
+  description: string,
 ) {
   const session = await auth();
   if (!session?.user) return { error: "Debes iniciar sesión para reportar." };
@@ -234,6 +348,18 @@ export async function reportProject(
       status: "PENDING",
     },
   });
+
+  // Avisa a los administradores del nuevo reporte.
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { title: true },
+  });
+  await notifyAdmins("NEW_REPORT", {
+    projectId,
+    title: project?.title ?? "un proyecto",
+    note: category,
+  });
+
   return { ok: true };
 }
 
@@ -247,7 +373,8 @@ export async function removeProject(projectId: string, note: string) {
   if (!project) return { error: "Proyecto no encontrado." };
 
   // Make repo private so it's no longer publicly accessible
-  if (project.githubRepo) await makeRepoPrivate(project.githubRepo).catch(() => {});
+  if (project.githubRepo)
+    await makeRepoPrivate(project.githubRepo).catch(() => {});
 
   await prisma.project.update({
     where: { id: projectId },
@@ -257,10 +384,23 @@ export async function removeProject(projectId: string, note: string) {
   // Mark related reports as actioned (updateMany also needs raw SQL or loop)
   const pendingReports = await prisma.report.findMany({
     where: { projectId, status: "PENDING" },
-    select: { id: true },
+    select: { id: true, reporterId: true },
   });
   for (const r of pendingReports) {
-    await prisma.report.update({ where: { id: r.id }, data: { status: "ACTIONED" } });
+    await prisma.report.update({
+      where: { id: r.id },
+      data: { status: "ACTIONED" },
+    });
+
+    // Notifica al reportante que su reporte fue atendido.
+    await prisma.notification.create({
+      data: {
+        userId: r.reporterId,
+        type: "REPORT_ACTIONED",
+        reference: { projectId, title: project.title, note },
+      },
+    });
+    await triggerUnreadNotificationCount(r.reporterId);
   }
 
   // Notify authors
@@ -279,6 +419,7 @@ export async function removeProject(projectId: string, note: string) {
   revalidatePath("/projects");
   revalidatePath("/admin");
   revalidatePath("/admin/projects");
+  revalidatePath("/admin/review");
   return { ok: true };
 }
 
@@ -289,9 +430,11 @@ export async function reinstateProject(projectId: string) {
 
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) return { error: "Proyecto no encontrado." };
-  if (project.status !== "REJECTED") return { error: "Solo se pueden reintegrar proyectos rechazados." };
+  if (project.status !== "REJECTED")
+    return { error: "Solo se pueden reintegrar proyectos rechazados." };
 
-  if (project.githubRepo) await makeRepoPublic(project.githubRepo).catch(() => {});
+  if (project.githubRepo)
+    await makeRepoPublic(project.githubRepo).catch(() => {});
 
   await prisma.project.update({
     where: { id: projectId },
@@ -302,6 +445,84 @@ export async function reinstateProject(projectId: string) {
   revalidatePath("/projects");
   revalidatePath("/admin");
   revalidatePath("/admin/projects");
+  revalidatePath("/admin/review");
+  return { ok: true };
+}
+
+// ── Approve a project (admin) ─────────────────────────────────────────────
+export async function approveProject(projectId: string) {
+  const session = await auth();
+  if (session?.user?.role !== Role.ADMIN) return { error: "No autorizado." };
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: {
+      id: true,
+      title: true,
+      githubRepo: true,
+      _count: { select: { versions: true } },
+      versions: {
+        orderBy: { number: "desc" },
+        take: 1,
+        select: { number: true },
+      },
+    },
+  });
+  if (!project) return { error: "Proyecto no encontrado." };
+
+  // Publica el repositorio para que el proyecto quede disponible públicamente.
+  if (project.githubRepo)
+    await makeRepoPublic(project.githubRepo).catch(() => {});
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { status: "APPROVED", rejectionNote: null },
+  });
+
+  // Notificar a los autores.
+  const authors = await prisma.projectAuthor.findMany({ where: { projectId } });
+  for (const a of authors) {
+    await prisma.notification.create({
+      data: {
+        userId: a.userId,
+        type: "PROJECT_APPROVED" as const,
+        reference: { projectId, title: project.title },
+      },
+    });
+    await triggerUnreadNotificationCount(a.userId);
+  }
+
+  // Si es una actualización (más de una versión), avisa a los seguidores recién
+  // ahora que el proyecto vuelve a estar público con la nueva versión.
+  if (project._count.versions > 1) {
+    const latestVersion = project.versions[0]?.number;
+    const followers = await prisma.projectFollow.findMany({
+      where: { projectId },
+      select: { userId: true },
+    });
+    for (const follower of followers) {
+      await prisma.notification.create({
+        data: {
+          userId: follower.userId,
+          type: "PROJECT_UPDATE",
+          reference: {
+            projectId,
+            title: project.title,
+            note: latestVersion
+              ? `Nueva versión (v${latestVersion}).`
+              : "Nueva actualización.",
+          },
+        },
+      });
+      await triggerUnreadNotificationCount(follower.userId);
+    }
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
+  revalidatePath("/admin");
+  revalidatePath("/admin/projects");
+  revalidatePath("/admin/review");
   return { ok: true };
 }
 
@@ -341,11 +562,15 @@ export async function deleteProject(projectId: string) {
   revalidatePath("/projects");
   revalidatePath("/admin");
   revalidatePath("/admin/projects");
+  revalidatePath("/admin/review");
   return { ok: true };
 }
 
 // ── Upload a new version of an existing project ───────────────────────────
-export async function uploadProjectVersion(projectId: string, formData: FormData) {
+export async function uploadProjectVersion(
+  projectId: string,
+  formData: FormData,
+) {
   const session = await auth();
   if (!session?.user) return { error: "No autorizado." };
 
@@ -357,30 +582,39 @@ export async function uploadProjectVersion(projectId: string, formData: FormData
       githubRepo: true,
       status: true,
       authors: { select: { userId: true } },
-      versions: { orderBy: { number: "desc" }, take: 1, select: { number: true } },
+      versions: {
+        orderBy: { number: "desc" },
+        take: 1,
+        select: { number: true },
+      },
     },
   });
 
   if (!project) return { error: "Proyecto no encontrado." };
 
+  // Solo el autor puede publicar versiones (no los admins).
   const isAuthor = project.authors.some((a) => a.userId === session.user.id);
-  const isAdmin = session.user.role === Role.ADMIN;
-  if (!isAuthor && !isAdmin) return { error: "Solo los autores pueden subir versiones." };
+  if (!isAuthor) return { error: "Solo los autores pueden subir versiones." };
 
   const changelog = (formData.get("changelog") as string | null)?.trim() ?? "";
   const rawFiles = formData.getAll("files") as File[];
   const validFiles = rawFiles.filter((f) => f.size > 0);
 
-  if (validFiles.length === 0) return { error: "Debes subir al menos un archivo." };
+  if (validFiles.length === 0)
+    return { error: "Debes subir al menos un archivo." };
 
   const oversized = validFiles.find((f) => f.size > MAX_FILE_SIZE);
   if (oversized) {
-    return { error: `El archivo "${oversized.name}" supera el límite de ${MAX_FILE_MB} MB.` };
+    return {
+      error: `El archivo "${oversized.name}" supera el límite de ${MAX_FILE_MB} MB.`,
+    };
   }
 
   const totalSize = validFiles.reduce((sum, f) => sum + f.size, 0);
   if (totalSize > MAX_TOTAL_SIZE) {
-    return { error: `El tamaño total de los archivos supera ${MAX_TOTAL_MB} MB.` };
+    return {
+      error: `El tamaño total de los archivos supera ${MAX_TOTAL_MB} MB.`,
+    };
   }
 
   const nextNumber = (project.versions[0]?.number ?? 0) + 1;
@@ -396,7 +630,7 @@ export async function uploadProjectVersion(projectId: string, formData: FormData
       commitSha = await commitFilesToRepo(
         project.githubRepo,
         fileBuffers,
-        `v${nextNumber}: ${changelog || "Nueva versión"}`
+        `v${nextNumber}: ${changelog || "Nueva versión"}`,
       );
     } catch {
       // non-fatal — still record the version
@@ -405,9 +639,17 @@ export async function uploadProjectVersion(projectId: string, formData: FormData
 
   // Upload files to Vercel Blob
   for (const file of validFiles) {
-    const blob = await put(`projects/${projectId}/${file.name}`, file, { access: "public" });
+    const blob = await put(`projects/${projectId}/${file.name}`, file, {
+      access: "public",
+    });
     await prisma.projectFile.create({
-      data: { projectId, name: file.name, blobUrl: blob.url, mimeType: file.type || "application/octet-stream", size: file.size },
+      data: {
+        projectId,
+        name: file.name,
+        blobUrl: blob.url,
+        mimeType: file.type || "application/octet-stream",
+        size: file.size,
+      },
     });
   }
 
@@ -421,7 +663,30 @@ export async function uploadProjectVersion(projectId: string, formData: FormData
     },
   });
 
+  // Las actualizaciones también requieren revisión: el proyecto vuelve a
+  // "Requiere revisión" y el repo queda privado hasta la aprobación manual.
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { status: "NEEDS_REVISION" },
+  });
+
+  if (project.githubRepo) {
+    const { makeRepoPrivate } = await import("@/lib/github");
+    await makeRepoPrivate(project.githubRepo).catch(() => {});
+  }
+
+  // Avisa a los administradores para que revisen la nueva versión.
+  await notifyAdmins("PROJECT_NEEDS_REVISION", {
+    projectId,
+    title: project.title,
+    note: `Nueva versión (v${nextNumber}) pendiente de aprobación.`,
+  });
+
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
+  revalidatePath("/admin");
+  revalidatePath("/admin/projects");
+  revalidatePath("/admin/review");
   return { ok: true, version };
 }
 

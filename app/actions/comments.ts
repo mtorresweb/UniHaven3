@@ -46,7 +46,7 @@ const commentSelect = {
 export async function addComment(
   projectId: string,
   content: string,
-  parentId?: string
+  parentId?: string,
 ): Promise<{
   error?: string;
   comment?: {
@@ -125,7 +125,8 @@ export async function addComment(
 
   // Notify project authors (skip the commenter)
   try {
-    const { triggerUnreadNotificationCount } = await import("@/lib/notifications");
+    const { triggerUnreadNotificationCount } =
+      await import("@/lib/notifications");
     const authors = await prisma.projectAuthor.findMany({
       where: { projectId },
       select: { userId: true },
@@ -158,7 +159,9 @@ export async function addComment(
   };
 }
 
-export async function deleteComment(commentId: string): Promise<{ error?: string; ok?: boolean }> {
+export async function deleteComment(
+  commentId: string,
+): Promise<{ error?: string; ok?: boolean }> {
   const session = await auth();
   if (!session?.user) {
     return { error: "Debes iniciar sesión para eliminar comentarios." };
@@ -266,6 +269,57 @@ export async function toggleReaction(opts: {
     },
   });
 
+  // Notifica al autor (del proyecto o del comentario) sobre la reacción.
+  try {
+    const { triggerUnreadNotificationCount } =
+      await import("@/lib/notifications");
+    if (projectId) {
+      const authors = await prisma.projectAuthor.findMany({
+        where: { projectId },
+        select: { userId: true },
+      });
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { title: true },
+      });
+      for (const author of authors) {
+        if (author.userId === session.user.id) continue;
+        await prisma.notification.create({
+          data: {
+            userId: author.userId,
+            type: "REACTION",
+            reference: { projectId, title: project?.title ?? "un proyecto" },
+          },
+        });
+        await triggerUnreadNotificationCount(author.userId);
+      }
+    } else if (commentId && targetProjectId) {
+      const comment = await prisma.comment.findUnique({
+        where: { id: commentId },
+        select: {
+          userId: true,
+          project: { select: { title: true } },
+        },
+      });
+      if (comment && comment.userId !== session.user.id) {
+        await prisma.notification.create({
+          data: {
+            userId: comment.userId,
+            type: "REACTION",
+            reference: {
+              projectId: targetProjectId,
+              commentId,
+              title: comment.project?.title ?? "un proyecto",
+            },
+          },
+        });
+        await triggerUnreadNotificationCount(comment.userId);
+      }
+    }
+  } catch {
+    // non-critical
+  }
+
   if (targetProjectId) {
     revalidatePath(`/projects/${targetProjectId}`);
   }
@@ -275,7 +329,7 @@ export async function toggleReaction(opts: {
 
 export async function loadMoreComments(
   projectId: string,
-  offset: number
+  offset: number,
 ): Promise<{
   error?: string;
   comments?: {

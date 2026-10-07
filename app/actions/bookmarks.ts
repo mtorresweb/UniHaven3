@@ -6,7 +6,7 @@ import { Role } from "@/lib/constants";
 import prisma from "@/lib/prisma";
 
 export async function toggleBookmark(
-  projectId: string
+  projectId: string,
 ): Promise<{ bookmarked: boolean }> {
   const session = await auth();
 
@@ -45,6 +45,33 @@ export async function toggleBookmark(
       projectId,
     },
   });
+
+  // Notifica a los autores que su proyecto fue guardado.
+  try {
+    const { triggerUnreadNotificationCount } =
+      await import("@/lib/notifications");
+    const authors = await prisma.projectAuthor.findMany({
+      where: { projectId },
+      select: { userId: true },
+    });
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { title: true },
+    });
+    for (const author of authors) {
+      if (author.userId === session.user.id) continue;
+      await prisma.notification.create({
+        data: {
+          userId: author.userId,
+          type: "PROJECT_BOOKMARKED",
+          reference: { projectId, title: project?.title ?? "un proyecto" },
+        },
+      });
+      await triggerUnreadNotificationCount(author.userId);
+    }
+  } catch {
+    // non-critical
+  }
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/profile/${session.user.id}`);

@@ -22,7 +22,10 @@ interface UploadVersionButtonProps {
   currentVersion: number;
 }
 
-export function UploadVersionButton({ projectId, currentVersion }: UploadVersionButtonProps) {
+export function UploadVersionButton({
+  projectId,
+  currentVersion,
+}: UploadVersionButtonProps) {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [isPending, startTransition] = useTransition();
@@ -61,7 +64,7 @@ export function UploadVersionButton({ projectId, currentVersion }: UploadVersion
         toast.error(result.error);
         return;
       }
-      toast.success(`Versión v${currentVersion + 1} publicada correctamente.`);
+      toast.success(`Versión v${currentVersion + 1} enviada para revisión.`);
       setOpen(false);
       setFiles([]);
       router.refresh();
@@ -80,11 +83,12 @@ export function UploadVersionButton({ projectId, currentVersion }: UploadVersion
         <DialogHeader>
           <DialogTitle>Nueva versión — v{currentVersion + 1}</DialogTitle>
           <DialogDescription>
-            Sube los archivos actualizados y describe los cambios realizados.
+            Sube los archivos actualizados y describe los cambios realizados. La
+            nueva versión quedará pendiente de aprobación por un administrador.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+        <form onSubmit={handleSubmit} className="min-w-0 space-y-4 mt-2">
           {/* Changelog */}
           <div className="space-y-1.5">
             <Label htmlFor="changelog">Descripción de cambios</Label>
@@ -125,7 +129,9 @@ export function UploadVersionButton({ projectId, currentVersion }: UploadVersion
                   key={file.name}
                   className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-1.5 text-sm"
                 >
-                  <span className="truncate mr-2">{file.name}</span>
+                  <span className="mr-2 min-w-0 flex-1 truncate">
+                    {file.name}
+                  </span>
                   <button
                     type="button"
                     onClick={() => removeFile(file.name)}
@@ -139,16 +145,25 @@ export function UploadVersionButton({ projectId, currentVersion }: UploadVersion
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={isPending}
+            >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending || files.length === 0} className="gap-2">
+            <Button
+              type="submit"
+              disabled={isPending || files.length === 0}
+              className="gap-2"
+            >
               {isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Upload className="h-4 w-4" />
               )}
-              Publicar v{currentVersion + 1}
+              Enviar v{currentVersion + 1} para revisión
             </Button>
           </div>
         </form>

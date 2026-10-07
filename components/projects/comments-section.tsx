@@ -97,6 +97,133 @@ function relativeDate(date: Date) {
   });
 }
 
+type ReplyControls = {
+  replyingTo: string | null;
+  drafts: Record<string, string>;
+  isPending: boolean;
+  toggle: (commentId: string) => void;
+  changeDraft: (commentId: string, value: string) => void;
+  submit: (parentId: string) => void;
+  cancel: () => void;
+};
+
+interface CommentCardProps {
+  comment: CommentWithReplies | ReplyComment;
+  isReply?: boolean;
+  currentUserId?: string;
+  isAdmin?: boolean;
+  reply: ReplyControls;
+  onDelete: (commentId: string) => void;
+}
+
+/**
+ * A nivel de modulo a proposito: si estuviera dentro de CommentsSection, React
+ * lo veria como un componente nuevo en cada render y remontaria el subarbol,
+ * haciendo que el textarea pierda el foco con cada tecla.
+ */
+function CommentCard({
+  comment,
+  isReply = false,
+  currentUserId,
+  isAdmin,
+  reply,
+  onDelete,
+}: CommentCardProps) {
+  const canDelete = Boolean(
+    currentUserId && (currentUserId === comment.userId || isAdmin)
+  );
+
+  return (
+    <div className={cn("flex gap-3", isReply && "rounded-lg border bg-muted/20 p-3") }>
+      <Avatar className="h-10 w-10 border-0">
+        <AvatarImage src={comment.user.image ?? undefined} alt={comment.user.name ?? comment.user.email ?? "Usuario"} />
+        <AvatarFallback className="bg-primary/10 font-semibold text-primary">
+          {getInitials(comment.user.name, comment.user.email)}
+        </AvatarFallback>
+      </Avatar>
+
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <span className="font-medium text-foreground break-words">
+            {comment.user.name ?? comment.user.email ?? "Usuario"}
+          </span>
+          <span className="text-muted-foreground">•</span>
+          <span className="text-muted-foreground">{relativeDate(comment.createdAt)}</span>
+        </div>
+
+        <p className="break-words text-sm leading-relaxed text-muted-foreground">
+          {comment.content}
+        </p>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {!isReply && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => reply.toggle(comment.id)}
+              className="h-auto px-0 py-0 text-muted-foreground hover:text-foreground"
+            >
+              <Reply className="mr-1 h-3.5 w-3.5" />
+              Responder
+            </Button>
+          )}
+
+          {canDelete && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(comment.id)}
+              className="h-auto px-0 py-0 text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="mr-1 h-3.5 w-3.5" />
+              Eliminar
+            </Button>
+          )}
+        </div>
+
+        {!isReply && reply.replyingTo === comment.id && (
+          <div className="space-y-3 rounded-lg border bg-card p-3">
+            <Textarea
+              value={reply.drafts[comment.id] ?? ""}
+              onChange={(event) => reply.changeDraft(comment.id, event.target.value)}
+              placeholder="Escribe una respuesta..."
+              maxLength={2000}
+              rows={3}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" onClick={() => reply.submit(comment.id)} disabled={reply.isPending}>
+                <Send className="mr-1 h-3.5 w-3.5" />
+                Responder
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={reply.cancel}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {!isReply && "replies" in comment && comment.replies.length > 0 && (
+          <div className="space-y-3 border-l border-border pl-4 pt-1">
+            {comment.replies.map((child) => (
+              <CommentCard
+                key={child.id}
+                comment={child}
+                isReply
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                reply={reply}
+                onDelete={onDelete}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function CommentsSection({
   projectId,
   initialComments,
@@ -234,91 +361,15 @@ export function CommentsSection({
     });
   }
 
-  function CommentCard({ comment, isReply = false }: { comment: CommentWithReplies | ReplyComment; isReply?: boolean }) {
-    const canDelete = Boolean(currentUserId && (currentUserId === comment.userId || isAdmin));
-
-    return (
-      <div className={cn("flex gap-3", isReply && "rounded-lg border bg-muted/20 p-3") }>
-        <Avatar className="h-10 w-10 border-0">
-          <AvatarImage src={comment.user.image ?? undefined} alt={comment.user.name ?? comment.user.email ?? "Usuario"} />
-          <AvatarFallback className="bg-primary/10 font-semibold text-primary">
-            {getInitials(comment.user.name, comment.user.email)}
-          </AvatarFallback>
-        </Avatar>
-
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <span className="font-medium text-foreground break-words">
-              {comment.user.name ?? comment.user.email ?? "Usuario"}
-            </span>
-            <span className="text-muted-foreground">•</span>
-            <span className="text-muted-foreground">{relativeDate(comment.createdAt)}</span>
-          </div>
-
-          <p className="break-words text-sm leading-relaxed text-muted-foreground">
-            {comment.content}
-          </p>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {!isReply && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => openReply(comment.id)}
-                className="h-auto px-0 py-0 text-muted-foreground hover:text-foreground"
-              >
-                <Reply className="mr-1 h-3.5 w-3.5" />
-                Responder
-              </Button>
-            )}
-
-            {canDelete && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDelete(comment.id)}
-                className="h-auto px-0 py-0 text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="mr-1 h-3.5 w-3.5" />
-                Eliminar
-              </Button>
-            )}
-          </div>
-
-          {!isReply && replyingTo === comment.id && (
-            <div className="space-y-3 rounded-lg border bg-card p-3">
-              <Textarea
-                value={replyDrafts[comment.id] ?? ""}
-                onChange={(event) => updateReplyDraft(comment.id, event.target.value)}
-                placeholder="Escribe una respuesta..."
-                maxLength={2000}
-                rows={3}
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" size="sm" onClick={() => submitComment(comment.id)} disabled={isPending}>
-                  <Send className="mr-1 h-3.5 w-3.5" />
-                  Responder
-                </Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => setReplyingTo(null)}>
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {!isReply && "replies" in comment && comment.replies.length > 0 && (
-            <div className="space-y-3 border-l border-border pl-4 pt-1">
-              {comment.replies.map((reply) => (
-                <CommentCard key={reply.id} comment={reply} isReply />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
+  const replyControls: ReplyControls = {
+    replyingTo,
+    drafts: replyDrafts,
+    isPending,
+    toggle: openReply,
+    changeDraft: updateReplyDraft,
+    submit: submitComment,
+    cancel: () => setReplyingTo(null),
+  };
 
   return (
     <section className="space-y-6">
@@ -361,7 +412,13 @@ export function CommentsSection({
         <div className="space-y-6">
           {comments.map((comment, index) => (
             <div key={comment.id} className="space-y-6">
-              <CommentCard comment={comment} />
+              <CommentCard
+                comment={comment}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                reply={replyControls}
+                onDelete={handleDelete}
+              />
               {index < comments.length - 1 && <Separator />}
             </div>
           ))}

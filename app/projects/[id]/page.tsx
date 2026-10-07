@@ -17,12 +17,16 @@ import {
   BookOpen,
   ExternalLink,
   CheckCircle,
+  Clock,
   GitBranch,
   Download,
 } from "lucide-react";
 import { incrementProjectView } from "@/app/actions/projects";
 import { repoUrl } from "@/lib/github";
-import { CommentsSection, type CommentWithReplies } from "@/components/projects/comments-section";
+import {
+  CommentsSection,
+  type CommentWithReplies,
+} from "@/components/projects/comments-section";
 import { ProjectReactions } from "@/components/projects/project-reactions";
 import { FollowButton } from "@/components/follows/follow-button";
 import { BookmarkButton } from "@/components/projects/bookmark-button";
@@ -52,8 +56,16 @@ export async function generateMetadata({
 
   if (!project) return { title: "Proyecto no encontrado — UniHaven" };
 
-  const typeLabel = { THESIS: "Tesis", RESEARCH: "Investigación", CLASSROOM: "Proyecto de aula" }[project.type] ?? project.type;
-  const authorsStr = project.authors.map((a) => a.user.name).filter(Boolean).join(", ");
+  const typeLabel =
+    {
+      THESIS: "Tesis",
+      RESEARCH: "Investigación",
+      CLASSROOM: "Proyecto de aula",
+    }[project.type] ?? project.type;
+  const authorsStr = project.authors
+    .map((a) => a.user.name)
+    .filter(Boolean)
+    .join(", ");
   const description = project.abstract
     ? project.abstract.slice(0, 160)
     : `${typeLabel} · ${project.year}${authorsStr ? ` · ${authorsStr}` : ""}`;
@@ -65,7 +77,9 @@ export async function generateMetadata({
       title: project.title,
       description,
       type: "article",
-      ...(project.coverImage ? { images: [{ url: project.coverImage, width: 1200, height: 630 }] } : {}),
+      ...(project.coverImage
+        ? { images: [{ url: project.coverImage, width: 1200, height: 630 }] }
+        : {}),
     },
     twitter: {
       card: project.coverImage ? "summary_large_image" : "summary",
@@ -230,9 +244,11 @@ export default async function ProjectPage({
       : Promise.resolve(null),
   ]);
 
-  const userReactionSet = new Set(userReactions.map((reaction) => reaction.type));
+  const userReactionSet = new Set(
+    userReactions.map((reaction) => reaction.type),
+  );
   const reactionCountByType = Object.fromEntries(
-    reactionGroups.map((reaction) => [reaction.type, reaction._count._all])
+    reactionGroups.map((reaction) => [reaction.type, reaction._count._all]),
   ) as Partial<Record<(typeof REACTION_TYPES)[number], number>>;
 
   const projectReactions = REACTION_TYPES.map((type) => ({
@@ -253,15 +269,35 @@ export default async function ProjectPage({
           <CheckCircle className="mt-0.5 h-5 w-5 text-primary shrink-0" />
           <div>
             <p className="font-semibold text-primary">
-              ¡Proyecto publicado con éxito!
+              ¡Proyecto enviado para revisión!
             </p>
             <p className="text-sm text-muted-foreground">
-              Tu trabajo ya está disponible públicamente en UniHaven y en
-              GitHub.
+              Tu trabajo quedó en estado &ldquo;Requiere revisión&rdquo;. Un
+              administrador debe aprobarlo antes de que sea visible
+              públicamente.
             </p>
           </div>
         </div>
       )}
+
+      {/* Pending review banner */}
+      {!submitted &&
+        (project.status === "DRAFT" ||
+          project.status === "IN_REVIEW" ||
+          project.status === "NEEDS_REVISION") && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-4">
+            <Clock className="mt-0.5 h-5 w-5 text-yellow-600 shrink-0" />
+            <div>
+              <p className="font-semibold text-yellow-700 dark:text-yellow-400">
+                Proyecto pendiente de revisión
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Este proyecto aún no es público. Un administrador debe aprobarlo
+                para que aparezca en el repositorio.
+              </p>
+            </div>
+          </div>
+        )}
 
       {/* Removed banner */}
       {project.status === "REJECTED" && (
@@ -383,7 +419,12 @@ export default async function ProjectPage({
                     </div>
                     {(f.githubPath || f.blobUrl) && (
                       <div className="flex shrink-0 items-center gap-1">
-                        <Button asChild variant="ghost" size="sm" className="h-8">
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="sm"
+                          className="h-8"
+                        >
                           <a
                             href={`/api/projects/${project.id}/files/${f.id}`}
                             target="_blank"
@@ -393,7 +434,12 @@ export default async function ProjectPage({
                             Ver
                           </a>
                         </Button>
-                        <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                        >
                           <a
                             href={`/api/projects/${project.id}/files/${f.id}?download=1`}
                             title="Descargar"
@@ -415,7 +461,7 @@ export default async function ProjectPage({
             <section>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold">Historial de versiones</h2>
-                {(isAuthor || isAdmin) && project.status === "APPROVED" && (
+                {isAuthor && project.status === "APPROVED" && (
                   <UploadVersionButton
                     projectId={project.id}
                     currentVersion={project.versions[0]?.number ?? 0}
@@ -432,7 +478,7 @@ export default async function ProjectPage({
                       v{v.number}
                     </Badge>
                     <div className="min-w-0 flex-1">
-                      <p className="text-muted-foreground">
+                      <p className="break-words text-muted-foreground">
                         {v.changelog ?? "Versión inicial."}
                       </p>
                       {v.commitSHA && (
@@ -577,7 +623,6 @@ export default async function ProjectPage({
               Ver todos los proyectos
             </Button>
           </Link>
-
         </aside>
       </div>
     </main>

@@ -4,13 +4,15 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { Role, isUpcEmail } from "@/lib/constants";
 import prisma from "@/lib/prisma";
+import { pusherServer } from "@/lib/pusher";
+import { triggerUnreadNotificationCount } from "@/lib/notifications";
 
 const VALID_ROLES = [Role.GENERAL, Role.UPC_STUDENT, Role.ADMIN] as const;
 
 type AdminRole = (typeof VALID_ROLES)[number];
 
 export async function dismissReport(
-  reportId: string
+  reportId: string,
 ): Promise<{ error?: string; ok?: boolean }> {
   const session = await auth();
   if (!session?.user || session.user.role !== Role.ADMIN) {
@@ -19,7 +21,12 @@ export async function dismissReport(
 
   const report = await prisma.report.findUnique({
     where: { id: reportId },
-    select: { id: true },
+    select: {
+      id: true,
+      reporterId: true,
+      projectId: true,
+      project: { select: { title: true } },
+    },
   });
 
   if (!report) {
@@ -31,13 +38,26 @@ export async function dismissReport(
     data: { status: "DISMISSED" },
   });
 
+  // Notifica al reportante que su reporte fue atendido.
+  await prisma.notification.create({
+    data: {
+      userId: report.reporterId,
+      type: "REPORT_ACTIONED",
+      reference: {
+        ...(report.projectId ? { projectId: report.projectId } : {}),
+        title: report.project?.title ?? "tu reporte",
+      },
+    },
+  });
+  await triggerUnreadNotificationCount(report.reporterId);
+
   revalidatePath("/admin");
   return { ok: true };
 }
 
 export async function setUserRole(
   userId: string,
-  role: AdminRole
+  role: AdminRole,
 ): Promise<{ error?: string; ok?: boolean }> {
   const session = await auth();
   if (!session?.user || session.user.role !== Role.ADMIN) {
@@ -60,13 +80,19 @@ export async function setUserRole(
   // Los correos fuera del dominio institucional deben quedarse en GENERAL.
   if (!isUpcEmail(user.email) && role !== Role.GENERAL) {
     return {
-      error: "Los usuarios con correo externo a unicesar.edu.co deben permanecer como General.",
+      error:
+        "Los usuarios con correo externo a unicesar.edu.co deben permanecer como General.",
     };
   }
 
   await prisma.user.update({
     where: { id: userId },
     data: { role },
+  });
+
+  // Avisa al cliente para que refresque su sesión al instante.
+  await pusherServer.trigger(`user-session-${userId}`, "role-changed", {
+    role,
   });
 
   revalidatePath("/admin/users");
@@ -79,7 +105,7 @@ export async function setUserRole(
  * en los compartidos solo se quita su autoría.
  */
 export async function deleteUser(
-  userId: string
+  userId: string,
 ): Promise<{ error?: string; ok?: boolean }> {
   const session = await auth();
   if (!session?.user || session.user.role !== Role.ADMIN) {
@@ -151,6 +177,9 @@ export async function deleteUser(
 
   // El borrado de la cuenta limpia en cascada el resto de su actividad.
   await prisma.user.delete({ where: { id: userId } });
+
+  // Si tenía la sesión abierta, que se cierre sola.
+  await pusherServer.trigger(`user-session-${userId}`, "account-deleted", {});
 
   revalidatePath("/admin/users");
   revalidatePath("/admin");

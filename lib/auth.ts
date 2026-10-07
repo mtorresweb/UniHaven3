@@ -7,8 +7,9 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { authConfig } from "@/auth.config";
 import { isUpcEmail, Role } from "@/lib/constants";
+import type { Session } from "next-auth";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+const nextAuth = NextAuth({
   ...authConfig,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adapter: PrismaAdapter(prisma as any),
@@ -60,3 +61,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
 });
 
+export const { handlers, signIn, signOut } = nextAuth;
+
+/**
+ * Igual que `auth()`, pero refresca el rol desde la base de datos en cada
+ * llamada: con sesiones JWT el rol queda fijado en el token al iniciar
+ * sesión, así que sin esto un cambio de rol (o el borrado de la cuenta)
+ * solo surtía efecto al volver a entrar.
+ *
+ * No la usa el middleware: corre en el edge y solo valida el JWT.
+ */
+export async function auth(): Promise<Session | null> {
+  const session = await nextAuth.auth();
+  if (!session?.user?.id) return session;
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true },
+  });
+
+  // La cuenta ya no existe (por ejemplo, la eliminó un admin).
+  if (!user) return null;
+
+  session.user.role = user.role as Role;
+  return session;
+}

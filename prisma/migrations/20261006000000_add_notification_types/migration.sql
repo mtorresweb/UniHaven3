@@ -1,0 +1,4 @@
+-- AlterEnum
+ALTER TYPE "NotificationType" ADD VALUE 'PROJECT_BOOKMARKED';
+ALTER TYPE "NotificationType" ADD VALUE 'COAUTHOR_ADDED';
+ALTER TYPE "NotificationType" ADD VALUE 'NEW_REPORT';

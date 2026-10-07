@@ -1,8 +1,19 @@
 "use client";
 
-import { useActionState, useState, useRef, useCallback } from "react";
+import {
+  useActionState,
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+} from "react";
 import { useFormStatus } from "react-dom";
-import { createProject, type CreateProjectState } from "@/app/actions/projects";
+import {
+  createProject,
+  searchCoAuthors,
+  type CreateProjectState,
+  type CoAuthor,
+} from "@/app/actions/projects";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +39,8 @@ import {
   AlertCircle,
   GitBranch,
   ImageIcon,
+  Plus,
+  UserPlus,
 } from "lucide-react";
 import { cn, formatBytes } from "@/lib/utils";
 import { UPLOAD_LIMITS } from "@/lib/constants";
@@ -49,8 +62,19 @@ const LICENSE_OPTIONS = [
 const MAX_FILE_SIZE = UPLOAD_LIMITS.maxFileSize;
 const MAX_TOTAL_SIZE = UPLOAD_LIMITS.maxTotalSize;
 const ALLOWED_EXTENSIONS = [
-  ".pdf", ".doc", ".docx", ".xls", ".xlsx",
-  ".ppt", ".pptx", ".zip", ".txt", ".png", ".jpg", ".jpeg", ".svg",
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".zip",
+  ".txt",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".svg",
 ];
 
 // Step 0 fields tracked in state so we can put them in hidden inputs on submit
@@ -66,7 +90,12 @@ type Meta = {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending} size="lg" className="w-full sm:w-auto">
+    <Button
+      type="submit"
+      disabled={pending}
+      size="lg"
+      className="w-full sm:w-auto"
+    >
       {pending ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -75,7 +104,7 @@ function SubmitButton() {
       ) : (
         <>
           <GitBranch className="mr-2 h-4 w-4" />
-          Publicar proyecto
+          Enviar para revisión
         </>
       )}
     </Button>
@@ -94,10 +123,14 @@ export function UploadForm({ areas }: { areas: Area[] }) {
     year: String(new Date().getFullYear()),
     license: "CC BY 4.0",
   });
-  const [metaErrors, setMetaErrors] = useState<Partial<Meta & { files: string }>>({});
+  const [metaErrors, setMetaErrors] = useState<
+    Partial<Meta & { files: string }>
+  >({});
 
   // Step 1 — files
-  const [fileList, setFileList] = useState<{ name: string; size: number }[]>([]);
+  const [fileList, setFileList] = useState<{ name: string; size: number }[]>(
+    [],
+  );
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Persistent File[] across step changes (fileInputRef goes null when step 1 unmounts)
@@ -112,9 +145,15 @@ export function UploadForm({ areas }: { areas: Area[] }) {
   const [keywords, setKeywords] = useState<string[]>([]);
   const [kwInput, setKwInput] = useState("");
 
+  // Co-autores
+  const [coauthors, setCoauthors] = useState<CoAuthor[]>([]);
+  const [coauthorQuery, setCoauthorQuery] = useState("");
+  const [coauthorResults, setCoauthorResults] = useState<CoAuthor[]>([]);
+  const [coauthorLoading, setCoauthorLoading] = useState(false);
+
   const [state, formAction] = useActionState<CreateProjectState, FormData>(
     createProject,
-    {}
+    {},
   );
 
   // ── Validation ────────────────────────────────────────────────────────────
@@ -139,7 +178,10 @@ export function UploadForm({ areas }: { areas: Area[] }) {
 
   function goToStep2() {
     if (fileList.length === 0) {
-      setMetaErrors((e) => ({ ...e, files: "Debes subir al menos un archivo." }));
+      setMetaErrors((e) => ({
+        ...e,
+        files: "Debes subir al menos un archivo.",
+      }));
       return;
     }
     const total = filesRef.current.reduce((sum, f) => sum + f.size, 0);
@@ -150,7 +192,11 @@ export function UploadForm({ areas }: { areas: Area[] }) {
       }));
       return;
     }
-    setMetaErrors((e) => { const n = { ...e }; delete n.files; return n; });
+    setMetaErrors((e) => {
+      const n = { ...e };
+      delete n.files;
+      return n;
+    });
     setStep(2);
   }
 
@@ -193,7 +239,7 @@ export function UploadForm({ areas }: { areas: Area[] }) {
         fileInputRef.current.files = dt.files;
       }
     },
-    [syncDisplayList]
+    [syncDisplayList],
   );
 
   const removeFile = useCallback(
@@ -206,7 +252,7 @@ export function UploadForm({ areas }: { areas: Area[] }) {
         fileInputRef.current.files = dt.files;
       }
     },
-    [syncDisplayList]
+    [syncDisplayList],
   );
 
   const handleDrop = useCallback(
@@ -215,7 +261,7 @@ export function UploadForm({ areas }: { areas: Area[] }) {
       setDragOver(false);
       mergeFiles(e.dataTransfer.files);
     },
-    [mergeFiles]
+    [mergeFiles],
   );
 
   const addKeyword = () => {
@@ -229,18 +275,64 @@ export function UploadForm({ areas }: { areas: Area[] }) {
   const handleCoverChange = (file: File | null) => {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      setMetaErrors((e) => ({ ...e, cover: "La imagen no puede superar 5 MB." }));
+      setMetaErrors((e) => ({
+        ...e,
+        cover: "La imagen no puede superar 5 MB.",
+      }));
       return;
     }
     if (!file.type.startsWith("image/")) {
-      setMetaErrors((e) => ({ ...e, cover: "Solo se permiten imágenes (JPG, PNG, WebP)." }));
+      setMetaErrors((e) => ({
+        ...e,
+        cover: "Solo se permiten imágenes (JPG, PNG, WebP).",
+      }));
       return;
     }
-    setMetaErrors((e) => { const n = { ...e }; delete (n as Record<string, string>).cover; return n; });
+    setMetaErrors((e) => {
+      const n = { ...e };
+      delete (n as Record<string, string>).cover;
+      return n;
+    });
     setCoverFile(file);
     const url = URL.createObjectURL(file);
     setCoverPreview(url);
   };
+
+  // ── Co-author search (debounced) ──────────────────────────────────────
+  useEffect(() => {
+    const q = coauthorQuery.trim();
+    if (q.length < 2) {
+      setCoauthorResults([]);
+      setCoauthorLoading(false);
+      return;
+    }
+
+    setCoauthorLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const results = await searchCoAuthors(q);
+        setCoauthorResults(
+          results.filter((r) => !coauthors.some((c) => c.id === r.id)),
+        );
+      } finally {
+        setCoauthorLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [coauthorQuery, coauthors]);
+
+  function addCoauthor(user: CoAuthor) {
+    setCoauthors((prev) =>
+      prev.some((c) => c.id === user.id) ? prev : [...prev, user],
+    );
+    setCoauthorQuery("");
+    setCoauthorResults([]);
+  }
+
+  function removeCoauthor(id: string) {
+    setCoauthors((prev) => prev.filter((c) => c.id !== id));
+  }
 
   const totalSize = fileList.reduce((acc, f) => acc + f.size, 0);
 
@@ -254,7 +346,11 @@ export function UploadForm({ areas }: { areas: Area[] }) {
               key={label}
               className={cn(
                 "transition-colors",
-                i === step ? "text-primary" : i < step ? "text-primary/60" : "text-muted-foreground"
+                i === step
+                  ? "text-primary"
+                  : i < step
+                    ? "text-primary/60"
+                    : "text-muted-foreground",
               )}
             >
               {i + 1}. {label}
@@ -279,23 +375,31 @@ export function UploadForm({ areas }: { areas: Area[] }) {
             <Label>Título del proyecto *</Label>
             <Input
               value={meta.title}
-              onChange={(e) => setMeta((m) => ({ ...m, title: e.target.value }))}
+              onChange={(e) =>
+                setMeta((m) => ({ ...m, title: e.target.value }))
+              }
               placeholder="Ej: Sistema de gestión de inventarios para PYMES del Cesar"
               maxLength={200}
             />
-            {metaErrors.title && <p className="text-xs text-destructive">{metaErrors.title}</p>}
+            {metaErrors.title && (
+              <p className="text-xs text-destructive">{metaErrors.title}</p>
+            )}
           </div>
 
           <div className="space-y-1.5">
             <Label>Resumen / Abstract *</Label>
             <Textarea
               value={meta.abstract}
-              onChange={(e) => setMeta((m) => ({ ...m, abstract: e.target.value }))}
+              onChange={(e) =>
+                setMeta((m) => ({ ...m, abstract: e.target.value }))
+              }
               placeholder="Describe brevemente el proyecto, sus objetivos y conclusiones…"
               rows={5}
               maxLength={2000}
             />
-            {metaErrors.abstract && <p className="text-xs text-destructive">{metaErrors.abstract}</p>}
+            {metaErrors.abstract && (
+              <p className="text-xs text-destructive">{metaErrors.abstract}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -314,7 +418,9 @@ export function UploadForm({ areas }: { areas: Area[] }) {
                   <SelectItem value="CLASSROOM">Proyecto de Aula</SelectItem>
                 </SelectContent>
               </Select>
-              {metaErrors.type && <p className="text-xs text-destructive">{metaErrors.type}</p>}
+              {metaErrors.type && (
+                <p className="text-xs text-destructive">{metaErrors.type}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -334,7 +440,9 @@ export function UploadForm({ areas }: { areas: Area[] }) {
                   ))}
                 </SelectContent>
               </Select>
-              {metaErrors.areaId && <p className="text-xs text-destructive">{metaErrors.areaId}</p>}
+              {metaErrors.areaId && (
+                <p className="text-xs text-destructive">{metaErrors.areaId}</p>
+              )}
             </div>
           </div>
 
@@ -344,11 +452,15 @@ export function UploadForm({ areas }: { areas: Area[] }) {
               <Input
                 type="number"
                 value={meta.year}
-                onChange={(e) => setMeta((m) => ({ ...m, year: e.target.value }))}
+                onChange={(e) =>
+                  setMeta((m) => ({ ...m, year: e.target.value }))
+                }
                 min={1990}
                 max={new Date().getFullYear() + 1}
               />
-              {metaErrors.year && <p className="text-xs text-destructive">{metaErrors.year}</p>}
+              {metaErrors.year && (
+                <p className="text-xs text-destructive">{metaErrors.year}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -362,7 +474,9 @@ export function UploadForm({ areas }: { areas: Area[] }) {
                 </SelectTrigger>
                 <SelectContent>
                   {LICENSE_OPTIONS.map((l) => (
-                    <SelectItem key={l} value={l}>{l}</SelectItem>
+                    <SelectItem key={l} value={l}>
+                      {l}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -370,11 +484,16 @@ export function UploadForm({ areas }: { areas: Area[] }) {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Imagen de portada <span className="text-muted-foreground">(opcional)</span></Label>
+            <Label>
+              Imagen de portada{" "}
+              <span className="text-muted-foreground">(opcional)</span>
+            </Label>
             <div
               className={cn(
                 "relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-center transition-colors",
-                coverPreview ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/40"
+                coverPreview
+                  ? "border-primary/40 bg-primary/5"
+                  : "border-border hover:border-primary/50 hover:bg-muted/40",
               )}
               onClick={() => coverInputRef.current?.click()}
             >
@@ -394,7 +513,8 @@ export function UploadForm({ areas }: { areas: Area[] }) {
                       e.stopPropagation();
                       setCoverFile(null);
                       setCoverPreview(null);
-                      if (coverInputRef.current) coverInputRef.current.value = "";
+                      if (coverInputRef.current)
+                        coverInputRef.current.value = "";
                     }}
                   >
                     <X className="h-4 w-4" />
@@ -405,8 +525,12 @@ export function UploadForm({ areas }: { areas: Area[] }) {
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
                     <ImageIcon className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <p className="text-sm text-muted-foreground">Haz clic para seleccionar una imagen</p>
-                  <p className="text-xs text-muted-foreground/70">JPG, PNG, WebP — máx. 5 MB</p>
+                  <p className="text-sm text-muted-foreground">
+                    Haz clic para seleccionar una imagen
+                  </p>
+                  <p className="text-xs text-muted-foreground/70">
+                    JPG, PNG, WebP — máx. 5 MB
+                  </p>
                 </>
               )}
             </div>
@@ -418,7 +542,9 @@ export function UploadForm({ areas }: { areas: Area[] }) {
               onChange={(e) => handleCoverChange(e.target.files?.[0] ?? null)}
             />
             {(metaErrors as Record<string, string>).cover && (
-              <p className="text-xs text-destructive">{(metaErrors as Record<string, string>).cover}</p>
+              <p className="text-xs text-destructive">
+                {(metaErrors as Record<string, string>).cover}
+              </p>
             )}
           </div>
 
@@ -429,10 +555,20 @@ export function UploadForm({ areas }: { areas: Area[] }) {
                 value={kwInput}
                 onChange={(e) => setKwInput(e.target.value)}
                 placeholder="Escribe una palabra y presiona Agregar"
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addKeyword(); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addKeyword();
+                  }
+                }}
                 maxLength={40}
               />
-              <Button type="button" variant="outline" onClick={addKeyword} disabled={keywords.length >= 10}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addKeyword}
+                disabled={keywords.length >= 10}
+              >
                 Agregar
               </Button>
             </div>
@@ -441,7 +577,65 @@ export function UploadForm({ areas }: { areas: Area[] }) {
                 {keywords.map((kw) => (
                   <Badge key={kw} variant="secondary" className="gap-1">
                     {kw}
-                    <button type="button" onClick={() => setKeywords((p) => p.filter((k) => k !== kw))}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setKeywords((p) => p.filter((k) => k !== kw))
+                      }
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5">
+              <UserPlus className="h-3.5 w-3.5" />
+              Coautores{" "}
+              <span className="font-normal text-muted-foreground">
+                (opcional)
+              </span>
+            </Label>
+            <Input
+              value={coauthorQuery}
+              onChange={(e) => setCoauthorQuery(e.target.value)}
+              placeholder="Busca por nombre o correo para añadir coautores…"
+              maxLength={120}
+            />
+            {coauthorLoading && (
+              <p className="text-xs text-muted-foreground">Buscando…</p>
+            )}
+            {coauthorResults.length > 0 && (
+              <div className="space-y-1 rounded-lg border bg-muted/30 p-1.5">
+                {coauthorResults.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => addCoauthor(u)}
+                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">
+                        {u.name}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {u.email}
+                      </span>
+                    </span>
+                    <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {coauthors.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {coauthors.map((c) => (
+                  <Badge key={c.id} variant="secondary" className="gap-1">
+                    {c.name}
+                    <button type="button" onClick={() => removeCoauthor(c.id)}>
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
@@ -464,9 +658,14 @@ export function UploadForm({ areas }: { areas: Area[] }) {
           <div
             className={cn(
               "flex min-h-[220px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-colors",
-              dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/40"
+              dragOver
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-primary/50 hover:bg-muted/40",
             )}
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
@@ -476,10 +675,14 @@ export function UploadForm({ areas }: { areas: Area[] }) {
             </div>
             <div>
               <p className="font-semibold">Arrastra los archivos aquí</p>
-              <p className="text-sm text-muted-foreground">o haz clic para seleccionar — máx. {formatBytes(MAX_FILE_SIZE)} por archivo y{" "}
-                {formatBytes(MAX_TOTAL_SIZE)} en total</p>
+              <p className="text-sm text-muted-foreground">
+                o haz clic para seleccionar — máx. {formatBytes(MAX_FILE_SIZE)}{" "}
+                por archivo y {formatBytes(MAX_TOTAL_SIZE)} en total
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">PDF, Word, Excel, PowerPoint, ZIP, imágenes, texto</p>
+            <p className="text-xs text-muted-foreground">
+              PDF, Word, Excel, PowerPoint, ZIP, imágenes, texto
+            </p>
           </div>
 
           {/* Real file input — triggered programmatically */}
@@ -495,17 +698,24 @@ export function UploadForm({ areas }: { areas: Area[] }) {
           {fileList.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm font-medium">
-                {fileList.length} archivo{fileList.length !== 1 ? "s" : ""} — Total:{" "}
-                <span className={totalSize > MAX_TOTAL_SIZE ? "text-destructive" : undefined}>
+                {fileList.length} archivo{fileList.length !== 1 ? "s" : ""} —
+                Total:{" "}
+                <span
+                  className={
+                    totalSize > MAX_TOTAL_SIZE ? "text-destructive" : undefined
+                  }
+                >
                   {formatBytes(totalSize)}
                 </span>
                 <span className="font-normal text-muted-foreground">
-                  {" "}de {formatBytes(MAX_TOTAL_SIZE)} máximo
+                  {" "}
+                  de {formatBytes(MAX_TOTAL_SIZE)} máximo
                 </span>
               </p>
               {totalSize > MAX_TOTAL_SIZE && (
                 <p className="text-xs text-destructive">
-                  Superas el límite total permitido: quita archivos para poder continuar.
+                  Superas el límite total permitido: quita archivos para poder
+                  continuar.
                 </p>
               )}
               {fileList.map((f) => (
@@ -514,9 +724,17 @@ export function UploadForm({ areas }: { areas: Area[] }) {
                     <File className="h-5 w-5 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{f.name}</p>
-                      <p className="text-xs text-muted-foreground">{formatBytes(f.size)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatBytes(f.size)}
+                      </p>
                     </div>
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeFile(f.name)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
+                      onClick={() => removeFile(f.name)}
+                    >
                       <X className="h-4 w-4" />
                     </Button>
                   </CardContent>
@@ -525,8 +743,14 @@ export function UploadForm({ areas }: { areas: Area[] }) {
             </div>
           )}
 
-          {metaErrors.files && <p className="text-sm text-destructive">{metaErrors.files}</p>}
-          {state.fieldErrors?.files && <p className="text-sm text-destructive">{state.fieldErrors.files}</p>}
+          {metaErrors.files && (
+            <p className="text-sm text-destructive">{metaErrors.files}</p>
+          )}
+          {state.fieldErrors?.files && (
+            <p className="text-sm text-destructive">
+              {state.fieldErrors.files}
+            </p>
+          )}
 
           <div className="flex justify-between">
             <Button type="button" variant="outline" onClick={() => setStep(0)}>
@@ -554,6 +778,9 @@ export function UploadForm({ areas }: { areas: Area[] }) {
           <input type="hidden" name="year" value={meta.year} />
           <input type="hidden" name="license" value={meta.license} />
           <input type="hidden" name="keywords" value={keywords.join(",")} />
+          {coauthors.map((c) => (
+            <input key={c.id} type="hidden" name="coauthors" value={c.id} />
+          ))}
 
           {/* Cover image — synced from coverFile state */}
           <input
@@ -598,16 +825,45 @@ export function UploadForm({ areas }: { areas: Area[] }) {
               </div>
             )}
             <div className="flex items-center gap-2 text-sm text-primary font-semibold">
-              <CheckCircle className="h-4 w-4" /> Listo para publicar
+              <CheckCircle className="h-4 w-4" /> Listo para enviar a revisión
             </div>
             <div className="text-sm text-muted-foreground space-y-1">
-              <p><span className="font-medium text-foreground">Título:</span> {meta.title}</p>
-              <p><span className="font-medium text-foreground">Tipo:</span> {{ THESIS: "Tesis de Grado", RESEARCH: "Investigación", CLASSROOM: "Proyecto de Aula" }[meta.type]}</p>
-              <p><span className="font-medium text-foreground">Año:</span> {meta.year}</p>
+              <p>
+                <span className="font-medium text-foreground">Título:</span>{" "}
+                {meta.title}
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Tipo:</span>{" "}
+                {
+                  {
+                    THESIS: "Tesis de Grado",
+                    RESEARCH: "Investigación",
+                    CLASSROOM: "Proyecto de Aula",
+                  }[meta.type]
+                }
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Año:</span>{" "}
+                {meta.year}
+              </p>
+              {coauthors.length > 0 && (
+                <p>
+                  <span className="font-medium text-foreground">
+                    Coautores:
+                  </span>{" "}
+                  {coauthors.map((c) => c.name).join(", ")}
+                </p>
+              )}
             </div>
             <ul className="text-sm space-y-1 text-muted-foreground pt-1 border-t">
-              <li>📁 {fileList.length} archivo{fileList.length !== 1 ? "s" : ""} ({formatBytes(totalSize)})</li>
-              <li>🌐 Se publicará públicamente en GitHub de inmediato</li>
+              <li>
+                📁 {fileList.length} archivo{fileList.length !== 1 ? "s" : ""} (
+                {formatBytes(totalSize)})
+              </li>
+              <li>
+                🌐 Se enviará a revisión; un administrador lo aprobará antes de
+                publicarlo
+              </li>
               <li>⚡ Versión 1 — commit automático</li>
             </ul>
           </div>

@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import prisma from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { canUploadProjects } from "@/lib/constants";
 import {
   ArrowRight,
   BookOpen,
@@ -142,6 +144,10 @@ async function getData() {
   };
 }
 
+// Depende de la sesion (para el boton de subir), asi que se renderiza por
+// peticion y ademas los contadores quedan siempre al dia.
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const {
     projectCount,
@@ -151,6 +157,9 @@ export default async function Home() {
     announcements,
     areas,
   } = await getData();
+
+  const session = await auth();
+  const canUpload = canUploadProjects(session?.user?.role);
 
   return (
     <div className="flex flex-col">
@@ -182,12 +191,14 @@ export default async function Home() {
                     Explorar proyectos
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="lg" className="gap-2">
-                  <Link href="/register">
-                    <Upload className="h-4 w-4" />
-                    Subir mi proyecto
-                  </Link>
-                </Button>
+                {canUpload && (
+                  <Button asChild variant="outline" size="lg" className="gap-2">
+                    <Link href="/projects/new">
+                      <Upload className="h-4 w-4" />
+                      Subir mi proyecto
+                    </Link>
+                  </Button>
+                )}
               </div>
             </div>
 

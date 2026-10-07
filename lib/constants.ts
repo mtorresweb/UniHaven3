@@ -11,6 +11,11 @@ export const Role = {
 
 export type Role = (typeof Role)[keyof typeof Role];
 
+/** Roles con permiso para subir proyectos. */
+export function canUploadProjects(role: Role | null | undefined): boolean {
+  return role === Role.UPC_STUDENT || role === Role.ADMIN;
+}
+
 export const ProjectType = {
   THESIS: "THESIS",
   RESEARCH: "RESEARCH",

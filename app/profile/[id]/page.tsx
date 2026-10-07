@@ -50,7 +50,8 @@ export async function generateMetadata({
   }
 
   const displayName = user.name?.trim() || user.email;
-  const description = user.bio?.trim() || `Perfil académico de ${displayName} en UniHaven.`;
+  const description =
+    user.bio?.trim() || `Perfil académico de ${displayName} en UniHaven.`;
 
   return {
     title: `${displayName} — UniHaven`,
@@ -61,8 +62,7 @@ export async function generateMetadata({
 const ROLE_META = {
   [Role.ADMIN]: {
     label: "Administrador",
-    className:
-      "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
+    className: "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
   },
   [Role.UPC_STUDENT]: {
     label: "Estudiante UPC",
@@ -71,8 +71,7 @@ const ROLE_META = {
   },
   [Role.GENERAL]: {
     label: "Usuario general",
-    className:
-      "border-muted bg-muted/60 text-muted-foreground",
+    className: "border-muted bg-muted/60 text-muted-foreground",
   },
 } as const;
 
@@ -105,20 +104,21 @@ const STATUS_META = {
   },
   REJECTED: {
     label: "Rechazado",
-    className:
-      "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
+    className: "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-400",
   },
 } as const;
 
 function getInitials(name?: string | null, email?: string) {
   const source = name?.trim() || email || "Usuario";
 
-  return source
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("") || "U";
+  return (
+    source
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "U"
+  );
 }
 
 function formatJoinDate(date: Date) {
@@ -177,26 +177,33 @@ export default async function ProfilePage({
 
   const isOwnProfile = session?.user?.id === user.id;
   const isAdmin = session?.user?.role === Role.ADMIN;
-  const [bookmarkedProjects, followCounts, initialUserFollow] = await Promise.all([
-    isOwnProfile ? getUserBookmarks(user.id) : Promise.resolve([]),
-    Promise.all([
-      prisma.userFollow.count({ where: { userId: user.id } }),
-      prisma.userFollow.count({ where: { followerId: user.id } }),
-    ]).then(([followers, following]) => ({ followers, following })),
-    session?.user?.id && !isOwnProfile
-      ? prisma.userFollow.findUnique({
-          where: {
-            followerId_userId: {
-              followerId: session.user.id,
-              userId: user.id,
+  const [bookmarkedProjects, followCounts, initialUserFollow] =
+    await Promise.all([
+      isOwnProfile ? getUserBookmarks(user.id) : Promise.resolve([]),
+      Promise.all([
+        prisma.userFollow.count({ where: { userId: user.id } }),
+        prisma.userFollow.count({ where: { followerId: user.id } }),
+      ]).then(([followers, following]) => ({ followers, following })),
+      session?.user?.id && !isOwnProfile
+        ? prisma.userFollow.findUnique({
+            where: {
+              followerId_userId: {
+                followerId: session.user.id,
+                userId: user.id,
+              },
             },
-          },
-        })
-      : Promise.resolve(null),
-  ]);
+          })
+        : Promise.resolve(null),
+    ]);
   const uploadedProjects = user.projects
     .map(({ project }) => project)
-    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+    .sort(
+      (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+    );
+  // Solo el dueño (y los administradores) ven los proyectos aún no aprobados.
+  const visibleProjects = uploadedProjects.filter(
+    (project) => project.status === "APPROVED" || isOwnProfile || isAdmin,
+  );
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
@@ -206,7 +213,10 @@ export default async function ProfilePage({
             <CardHeader className="items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20 border">
-                  <AvatarImage src={user.image ?? undefined} alt={user.name ?? user.email} />
+                  <AvatarImage
+                    src={user.image ?? undefined}
+                    alt={user.name ?? user.email}
+                  />
                   <AvatarFallback className="text-lg font-semibold">
                     {getInitials(user.name, user.email)}
                   </AvatarFallback>
@@ -223,7 +233,10 @@ export default async function ProfilePage({
                       </CardDescription>
                     )}
                   </div>
-                  <Badge variant="outline" className={ROLE_META[user.role].className}>
+                  <Badge
+                    variant="outline"
+                    className={ROLE_META[user.role].className}
+                  >
                     {ROLE_META[user.role].label}
                   </Badge>
                 </div>
@@ -281,9 +294,12 @@ export default async function ProfilePage({
 
         <div className="space-y-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Perfil de usuario</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Perfil de usuario
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Explora los proyectos publicados y los marcadores personales disponibles.
+              Explora los proyectos publicados y los marcadores personales
+              disponibles.
             </p>
           </div>
 
@@ -291,7 +307,7 @@ export default async function ProfilePage({
             <TabsList>
               <TabsTrigger value="projects" className="gap-2">
                 <FolderOpen className="h-4 w-4" />
-                Proyectos ({uploadedProjects.length})
+                Proyectos ({visibleProjects.length})
               </TabsTrigger>
               {isOwnProfile && (
                 <TabsTrigger value="bookmarks" className="gap-2">
@@ -302,7 +318,7 @@ export default async function ProfilePage({
             </TabsList>
 
             <TabsContent value="projects">
-              {uploadedProjects.length === 0 ? (
+              {visibleProjects.length === 0 ? (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
                     <UserCircle2 className="h-10 w-10 text-muted-foreground/50" />
@@ -316,11 +332,13 @@ export default async function ProfilePage({
                 </Card>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {uploadedProjects.map((project) => (
+                  {visibleProjects.map((project) => (
                     <Card key={project.id} className="flex h-full flex-col">
                       <CardHeader className="space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline">{TYPE_LABELS[project.type]}</Badge>
+                          <Badge variant="outline">
+                            {TYPE_LABELS[project.type]}
+                          </Badge>
                           <Badge
                             variant="outline"
                             className={STATUS_META[project.status].className}
@@ -339,7 +357,9 @@ export default async function ProfilePage({
                       </CardHeader>
                       <CardContent className="mt-auto">
                         <Button asChild variant="outline" className="w-full">
-                          <Link href={`/projects/${project.id}`}>Ver proyecto</Link>
+                          <Link href={`/projects/${project.id}`}>
+                            Ver proyecto
+                          </Link>
                         </Button>
                       </CardContent>
                     </Card>
@@ -368,7 +388,9 @@ export default async function ProfilePage({
                       <Card key={project.id} className="flex h-full flex-col">
                         <CardHeader className="space-y-3">
                           <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="outline">{TYPE_LABELS[project.type]}</Badge>
+                            <Badge variant="outline">
+                              {TYPE_LABELS[project.type]}
+                            </Badge>
                             <Badge variant="secondary">{project.year}</Badge>
                           </div>
                           <div>
@@ -384,7 +406,9 @@ export default async function ProfilePage({
                         </CardHeader>
                         <CardContent className="mt-auto">
                           <Button asChild variant="outline" className="w-full">
-                            <Link href={`/projects/${project.id}`}>Abrir proyecto</Link>
+                            <Link href={`/projects/${project.id}`}>
+                              Abrir proyecto
+                            </Link>
                           </Button>
                         </CardContent>
                       </Card>

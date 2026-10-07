@@ -2,7 +2,11 @@
 
 import { auth } from "@/lib/auth";
 import type { NotificationType } from "@/lib/generated/prisma/enums";
-import { triggerNotificationsCleared, type NotificationReference } from "@/lib/notifications";
+import {
+  triggerNotificationsCleared,
+  triggerUnreadNotificationCount,
+  type NotificationReference,
+} from "@/lib/notifications";
 import prisma from "@/lib/prisma";
 
 export type NotificationListItem = {
@@ -57,7 +61,8 @@ export async function getNotifications(): Promise<NotificationsResult> {
     notifications: notifications.map((notification) => ({
       id: notification.id,
       type: notification.type,
-      reference: (notification.reference as NotificationReference | null) ?? null,
+      reference:
+        (notification.reference as NotificationReference | null) ?? null,
       read: notification.read,
       createdAt: notification.createdAt.toISOString(),
     })),
@@ -115,6 +120,47 @@ export async function markRead(id: string): Promise<NotificationActionResult> {
       data: { read: true },
     });
   }
+
+  return { ok: true };
+}
+
+export async function deleteNotification(
+  id: string,
+): Promise<NotificationActionResult> {
+  const user = await requireUser();
+  if (!user) {
+    return { error: "No autorizado." };
+  }
+
+  const notification = await prisma.notification.findFirst({
+    where: {
+      id,
+      userId: user.id,
+    },
+    select: { id: true, read: true },
+  });
+
+  if (!notification) {
+    return { error: "Notificación no encontrada." };
+  }
+
+  await prisma.notification.delete({ where: { id } });
+
+  if (!notification.read) {
+    await triggerUnreadNotificationCount(user.id);
+  }
+
+  return { ok: true };
+}
+
+export async function deleteAllNotifications(): Promise<NotificationActionResult> {
+  const user = await requireUser();
+  if (!user) {
+    return { error: "No autorizado." };
+  }
+
+  await prisma.notification.deleteMany({ where: { userId: user.id } });
+  await triggerNotificationsCleared(user.id);
 
   return { ok: true };
 }

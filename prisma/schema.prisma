@@ -56,8 +56,8 @@ model User {
   name          String?
   email         String    @unique
   emailVerified DateTime?
-  image         String?   // Vercel Blob URL for avatar
-  password      String?   // null for OAuth users
+  image         String? // Vercel Blob URL for avatar
+  password      String? // null for OAuth users
   role          Role      @default(GENERAL)
   bio           String?   @db.Text
   orcid         String?
@@ -65,26 +65,26 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  projects      ProjectAuthor[]
-  comments      Comment[]
-  reactions     Reaction[]
-  notifications Notification[]
-  reports       Report[]
-  messages      Message[]
+  accounts         Account[]
+  sessions         Session[]
+  projects         ProjectAuthor[]
+  comments         Comment[]
+  reactions        Reaction[]
+  notifications    Notification[]
+  reports          Report[]
+  messages         Message[]
   chatParticipants ChatParticipant[]
-  bookmarks     Bookmark[]
-  following     UserFollow[]   @relation("Follower")
-  followers     UserFollow[]   @relation("Following")
-  projectFollows ProjectFollow[]
+  bookmarks        Bookmark[]
+  following        UserFollow[]      @relation("Follower")
+  followers        UserFollow[]      @relation("Following")
+  projectFollows   ProjectFollow[]
 }
 
 model PendingRegistration {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
-  password  String   // bcrypt hashed
+  password  String // bcrypt hashed
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -117,33 +117,33 @@ enum ProjectStatus {
 }
 
 model Project {
-  id          String        @id @default(cuid())
-  title       String
-  abstract    String        @db.Text
-  type        ProjectType
-  status      ProjectStatus @default(DRAFT)
-  year        Int
-  license     String        @default("CC BY 4.0")
-  githubRepo  String?       // owner/repo-name
-  coverImage  String?       // Vercel Blob URL
-  keywords    String[]
-  views       Int           @default(0)
-  downloads   Int           @default(0)
-  rejectionNote String?     @db.Text
-  areaId      String
-  area        KnowledgeArea @relation(fields: [areaId], references: [id])
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  title         String
+  abstract      String        @db.Text
+  type          ProjectType
+  status        ProjectStatus @default(DRAFT)
+  year          Int
+  license       String        @default("CC BY 4.0")
+  githubRepo    String? // owner/repo-name
+  coverImage    String? // Vercel Blob URL
+  keywords      String[]
+  views         Int           @default(0)
+  downloads     Int           @default(0)
+  rejectionNote String?       @db.Text
+  areaId        String
+  area          KnowledgeArea @relation(fields: [areaId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  authors     ProjectAuthor[]
-  files       ProjectFile[]
-  versions    ProjectVersion[]
-  comments    Comment[]
-  reactions   Reaction[]
-  reports     Report[]
-  bookmarks   Bookmark[]
-  followers   ProjectFollow[]
-  chat        Chat?
+  authors   ProjectAuthor[]
+  files     ProjectFile[]
+  versions  ProjectVersion[]
+  comments  Comment[]
+  reactions Reaction[]
+  reports   Report[]
+  bookmarks Bookmark[]
+  followers ProjectFollow[]
+  chat      Chat?
 }
 
 model ProjectAuthor {
@@ -160,10 +160,10 @@ model ProjectFile {
   projectId  String
   project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name       String
-  githubPath String?  // path within the GitHub repo
-  blobUrl    String?  // Vercel Blob (only for non-GitHub assets)
+  githubPath String? // path within the GitHub repo
+  blobUrl    String? // Vercel Blob (only for non-GitHub assets)
   mimeType   String
-  size       Int      // bytes
+  size       Int // bytes
   createdAt  DateTime @default(now())
 }
 
@@ -182,20 +182,20 @@ model ProjectVersion {
 // ─── Comments ───────────────────────────────────────────────────────────────
 
 model Comment {
-  id        String    @id @default(cuid())
+  id        String     @id @default(cuid())
   projectId String
-  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content   String    @db.Text
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String     @db.Text
   parentId  String?
-  parent    Comment?  @relation("Replies", fields: [parentId], references: [id])
-  replies   Comment[] @relation("Replies")
-  hidden    Boolean   @default(false)
+  parent    Comment?   @relation("Replies", fields: [parentId], references: [id])
+  replies   Comment[]  @relation("Replies")
+  hidden    Boolean    @default(false)
   reactions Reaction[]
   reports   Report[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 // ─── Reactions ───────────────────────────────────────────────────────────────
@@ -265,6 +265,9 @@ enum NotificationType {
   NEW_FOLLOWER
   PROJECT_UPDATE
   REPORT_ACTIONED
+  PROJECT_BOOKMARKED
+  COAUTHOR_ADDED
+  NEW_REPORT
 }
 
 model Notification {
@@ -272,7 +275,7 @@ model Notification {
   userId    String
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      NotificationType
-  reference Json?            // context data (projectId, commentId, etc.)
+  reference Json? // context data (projectId, commentId, etc.)
   read      Boolean          @default(false)
   createdAt DateTime         @default(now())
 }
@@ -285,13 +288,13 @@ enum ChatType {
 }
 
 model Chat {
-  id           String           @id @default(cuid())
+  id           String            @id @default(cuid())
   type         ChatType
-  projectId    String?          @unique
-  project      Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    String?           @unique
+  project      Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   participants ChatParticipant[]
   messages     Message[]
-  createdAt    DateTime         @default(now())
+  createdAt    DateTime          @default(now())
 }
 
 model ChatParticipant {
@@ -320,7 +323,7 @@ model Announcement {
   title      String
   body       String   @db.Text
   pinned     Boolean  @default(false)
-  coverImage String?  // optional Vercel Blob URL
+  coverImage String? // optional Vercel Blob URL
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
@@ -359,4 +362,3 @@ model ProjectFollow {
 
   @@id([userId, projectId])
 }
-

@@ -5,6 +5,7 @@ import { ProjectStatus, ProjectType } from "@/lib/constants";
 import { RemoveProjectButton } from "@/components/admin/remove-project-button";
 import { DeleteProjectButton } from "@/components/admin/delete-project-button";
 import { ReinstateProjectButton } from "@/components/admin/reinstate-project-button";
+import { ApproveProjectButton } from "@/components/admin/approve-project-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -155,8 +156,8 @@ export default async function AdminProjectsPage({
           Todos los proyectos
         </h1>
         <p className="text-sm text-muted-foreground">
-          Consulta el estado general del repositorio y retira proyectos
-          aprobados cuando sea necesario.
+          Revisa, aprueba o retira proyectos del repositorio. Los proyectos
+          nuevos y sus actualizaciones requieren aprobación manual.
         </p>
       </div>
 
@@ -280,6 +281,12 @@ export default async function AdminProjectsPage({
                               Ver
                             </Link>
                           </Button>
+                          {(project.status === ProjectStatus.DRAFT ||
+                            project.status === ProjectStatus.IN_REVIEW ||
+                            project.status ===
+                              ProjectStatus.NEEDS_REVISION) && (
+                            <ApproveProjectButton projectId={project.id} />
+                          )}
                           {project.status === ProjectStatus.APPROVED && (
                             <RemoveProjectButton
                               projectId={project.id}
