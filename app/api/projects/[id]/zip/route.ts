@@ -131,6 +131,14 @@ export async function GET(
 
   const filename = `${slugify(project.title)}-archivos.zip`;
 
+  // Incrementa el contador de descargas.
+  await prisma.project
+    .update({
+      where: { id },
+      data: { downloads: { increment: 1 } },
+    })
+    .catch(() => {});
+
   return new Response(createZipStream(entries), {
     status: 200,
     headers: {

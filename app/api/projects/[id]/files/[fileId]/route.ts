@@ -51,6 +51,19 @@ export async function GET(
     return new Response("Archivo no encontrado", { status: 404 });
   }
 
+  const forceDownload =
+    new URL(request.url).searchParams.get("download") === "1";
+
+  // Incrementa el contador de descargas solo cuando es una descarga explícita.
+  if (forceDownload) {
+    await prisma.project
+      .update({
+        where: { id },
+        data: { downloads: { increment: 1 } },
+      })
+      .catch(() => {});
+  }
+
   // Archivos alojados en Vercel Blob: Vercel ya los sirve directamente.
   if (file.blobUrl) {
     return Response.redirect(file.blobUrl, 302);
@@ -61,8 +74,6 @@ export async function GET(
   }
 
   const mimeType = file.mimeType || "application/octet-stream";
-  const forceDownload =
-    new URL(request.url).searchParams.get("download") === "1";
   const inline = !forceDownload && INLINE_TYPES.has(mimeType);
 
   const upstream = await fetchRepoFile(
