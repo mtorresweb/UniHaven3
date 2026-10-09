@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, X, Loader2, GitBranch } from "lucide-react";
+import { Upload, X, Loader2, GitBranch, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { uploadProjectVersion } from "@/app/actions/projects";
 import { Button } from "@/components/ui/button";
@@ -22,27 +22,40 @@ interface UploadVersionButtonProps {
   currentVersion: number;
 }
 
+type FileEntry = { file: File; path: string };
+
+/** Ruta relativa del archivo (preserva la estructura al subir carpetas). */
+function getFilePath(file: File): string {
+  return file.webkitRelativePath || file.name;
+}
+
 export function UploadVersionButton({
   projectId,
   currentVersion,
 }: UploadVersionButtonProps) {
   const [open, setOpen] = useState(false);
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<FileEntry[]>([]);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
     setFiles((prev) => {
-      const existing = new Set(prev.map((f) => f.name));
-      return [...prev, ...selected.filter((f) => !existing.has(f.name))];
+      const existing = new Set(prev.map((f) => f.path));
+      return [
+        ...prev,
+        ...selected
+          .map((file) => ({ file, path: getFilePath(file) }))
+          .filter((entry) => !existing.has(entry.path)),
+      ];
     });
     e.target.value = "";
   }
 
-  function removeFile(name: string) {
-    setFiles((prev) => prev.filter((f) => f.name !== name));
+  function removeFile(path: string) {
+    setFiles((prev) => prev.filter((f) => f.path !== path));
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -54,9 +67,13 @@ export function UploadVersionButton({
 
     const form = e.currentTarget;
     const formData = new FormData(form);
-    // Replace files field with actual File objects
+    // Replace files field with actual File objects + their relative paths
     formData.delete("files");
-    for (const file of files) formData.append("files", file);
+    formData.delete("paths");
+    for (const entry of files) {
+      formData.append("files", entry.file);
+      formData.append("paths", entry.path);
+    }
 
     startTransition(async () => {
       const result = await uploadProjectVersion(projectId, formData);
@@ -119,22 +136,40 @@ export function UploadVersionButton({
               className="hidden"
               onChange={handleFileChange}
             />
+            <input
+              ref={folderInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileChange}
+              {...({
+                webkitdirectory: "",
+              } as React.InputHTMLAttributes<HTMLInputElement>)}
+            />
+            <button
+              type="button"
+              onClick={() => folderInputRef.current?.click()}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-muted-foreground/25 px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+            >
+              <FolderOpen className="h-4 w-4" />
+              Seleccionar carpeta
+            </button>
           </div>
 
           {/* File list */}
           {files.length > 0 && (
             <ul className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-              {files.map((file) => (
+              {files.map((entry) => (
                 <li
-                  key={file.name}
+                  key={entry.path}
                   className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-1.5 text-sm"
                 >
                   <span className="mr-2 min-w-0 flex-1 truncate">
-                    {file.name}
+                    {entry.path}
                   </span>
                   <button
                     type="button"
-                    onClick={() => removeFile(file.name)}
+                    onClick={() => removeFile(entry.path)}
                     className="shrink-0 text-muted-foreground hover:text-destructive"
                   >
                     <X className="h-3.5 w-3.5" />

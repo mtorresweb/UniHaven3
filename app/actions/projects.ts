@@ -26,6 +26,19 @@ const MAX_TOTAL_SIZE = UPLOAD_LIMITS.maxTotalSize;
 const MAX_FILE_MB = MAX_FILE_SIZE / 1024 / 1024;
 const MAX_TOTAL_MB = MAX_TOTAL_SIZE / 1024 / 1024;
 
+/**
+ * Sanitiza una ruta relativa preservando su estructura de carpetas
+ * (p. ej. "src/components/Button.js" se mantiene igual).
+ */
+function sanitizeRelativePath(path: string): string {
+  const cleaned = path
+    .split("/")
+    .map((segment) => segment.replace(/[^a-zA-Z0-9._\-]/g, "_"))
+    .filter(Boolean)
+    .join("/");
+  return cleaned || "archivo";
+}
+
 export type CreateProjectState = {
   error?: string;
   fieldErrors?: Record<string, string>;
@@ -74,6 +87,7 @@ export async function createProject(
 
   // ── Files ─────────────────────────────────────────────────────────────────
   const rawFiles = formData.getAll("files") as File[];
+  const rawPaths = formData.getAll("paths") as string[];
   if (!rawFiles.length || (rawFiles.length === 1 && rawFiles[0].size === 0)) {
     fieldErrors.files = "Debes subir al menos un archivo.";
   }
@@ -183,24 +197,27 @@ export async function createProject(
   });
   gitFiles.push({ path: "README.md", content: readmeBuffer });
 
-  // Actual uploaded files — placed in /files/ subfolder
+  // Actual uploaded files — placed in /files/ subfolder, preserving any
+  // directory structure selected via the folder picker.
   const fileRecords: {
     name: string;
     path: string;
     mimeType: string;
     size: number;
   }[] = [];
-  for (const f of rawFiles) {
+  for (let i = 0; i < rawFiles.length; i++) {
+    const f = rawFiles[i];
     if (f.size === 0) continue;
-    const safeName = f.name.replace(/[^a-zA-Z0-9._\-]/g, "_");
-    const repoPath = `files/${safeName}`;
+    const originalName = rawPaths[i] || f.name;
+    const relativePath = sanitizeRelativePath(originalName);
+    const repoPath = `files/${relativePath}`;
     gitFiles.push({
       path: repoPath,
       // Se lee al subirlo: evita tener todos los archivos en memoria a la vez.
       content: async () => Buffer.from(await f.arrayBuffer()),
     });
     fileRecords.push({
-      name: f.name,
+      name: originalName,
       path: repoPath,
       mimeType: f.type || "application/octet-stream",
       size: f.size,
@@ -598,19 +615,22 @@ export async function uploadProjectVersion(
 
   const changelog = (formData.get("changelog") as string | null)?.trim() ?? "";
   const rawFiles = formData.getAll("files") as File[];
-  const validFiles = rawFiles.filter((f) => f.size > 0);
+  const rawPaths = formData.getAll("paths") as string[];
+  const validFiles = rawFiles
+    .map((file, i) => ({ file, path: rawPaths[i] || file.name }))
+    .filter((entry) => entry.file.size > 0);
 
   if (validFiles.length === 0)
     return { error: "Debes subir al menos un archivo." };
 
-  const oversized = validFiles.find((f) => f.size > MAX_FILE_SIZE);
+  const oversized = validFiles.find((entry) => entry.file.size > MAX_FILE_SIZE);
   if (oversized) {
     return {
-      error: `El archivo "${oversized.name}" supera el límite de ${MAX_FILE_MB} MB.`,
+      error: `El archivo "${oversized.path}" supera el límite de ${MAX_FILE_MB} MB.`,
     };
   }
 
-  const totalSize = validFiles.reduce((sum, f) => sum + f.size, 0);
+  const totalSize = validFiles.reduce((sum, entry) => sum + entry.file.size, 0);
   if (totalSize > MAX_TOTAL_SIZE) {
     return {
       error: `El tamaño total de los archivos supera ${MAX_TOTAL_MB} MB.`,
@@ -619,13 +639,13 @@ export async function uploadProjectVersion(
 
   const nextNumber = (project.versions[0]?.number ?? 0) + 1;
 
-  // Commit to GitHub
+  // Commit to GitHub — preserva la estructura de carpetas si se subió un directorio.
   let commitSha: string | undefined;
   if (project.githubRepo) {
     try {
-      const fileBuffers: GitHubFile[] = validFiles.map((f) => ({
-        path: f.name,
-        content: async () => Buffer.from(await f.arrayBuffer()),
+      const fileBuffers: GitHubFile[] = validFiles.map((entry) => ({
+        path: sanitizeRelativePath(entry.path),
+        content: async () => Buffer.from(await entry.file.arrayBuffer()),
       }));
       commitSha = await commitFilesToRepo(
         project.githubRepo,
@@ -638,17 +658,18 @@ export async function uploadProjectVersion(
   }
 
   // Upload files to Vercel Blob
-  for (const file of validFiles) {
-    const blob = await put(`projects/${projectId}/${file.name}`, file, {
+  for (const entry of validFiles) {
+    const blobKey = sanitizeRelativePath(entry.path);
+    const blob = await put(`projects/${projectId}/${blobKey}`, entry.file, {
       access: "public",
     });
     await prisma.projectFile.create({
       data: {
         projectId,
-        name: file.name,
+        name: entry.path,
         blobUrl: blob.url,
-        mimeType: file.type || "application/octet-stream",
-        size: file.size,
+        mimeType: entry.file.type || "application/octet-stream",
+        size: entry.file.size,
       },
     });
   }

@@ -41,6 +41,7 @@ import {
   ImageIcon,
   Plus,
   UserPlus,
+  FolderOpen,
 } from "lucide-react";
 import { cn, formatBytes } from "@/lib/utils";
 import { UPLOAD_LIMITS } from "@/lib/constants";
@@ -61,21 +62,6 @@ const LICENSE_OPTIONS = [
 
 const MAX_FILE_SIZE = UPLOAD_LIMITS.maxFileSize;
 const MAX_TOTAL_SIZE = UPLOAD_LIMITS.maxTotalSize;
-const ALLOWED_EXTENSIONS = [
-  ".pdf",
-  ".doc",
-  ".docx",
-  ".xls",
-  ".xlsx",
-  ".ppt",
-  ".pptx",
-  ".zip",
-  ".txt",
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".svg",
-];
 
 // Step 0 fields tracked in state so we can put them in hidden inputs on submit
 type Meta = {
@@ -86,6 +72,13 @@ type Meta = {
   year: string;
   license: string;
 };
+
+type FileEntry = { file: File; path: string };
+
+/** Ruta relativa del archivo (preserva la estructura al subir carpetas). */
+function getFilePath(file: File): string {
+  return file.webkitRelativePath || file.name;
+}
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -128,13 +121,14 @@ export function UploadForm({ areas }: { areas: Area[] }) {
   >({});
 
   // Step 1 — files
-  const [fileList, setFileList] = useState<{ name: string; size: number }[]>(
-    [],
-  );
+  const [fileList, setFileList] = useState<
+    { name: string; size: number; path: string }[]
+  >([]);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Persistent File[] across step changes (fileInputRef goes null when step 1 unmounts)
-  const filesRef = useRef<File[]>([]);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  // Persistent FileEntry[] across step changes (fileInputRef goes null when step 1 unmounts)
+  const filesRef = useRef<FileEntry[]>([]);
 
   // Cover image
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -184,7 +178,7 @@ export function UploadForm({ areas }: { areas: Area[] }) {
       }));
       return;
     }
-    const total = filesRef.current.reduce((sum, f) => sum + f.size, 0);
+    const total = filesRef.current.reduce((sum, f) => sum + f.file.size, 0);
     if (total > MAX_TOTAL_SIZE) {
       setMetaErrors((e) => ({
         ...e,
@@ -201,24 +195,31 @@ export function UploadForm({ areas }: { areas: Area[] }) {
   }
 
   // ── File management ───────────────────────────────────────────────────────
-  const syncDisplayList = useCallback((files: File[]) => {
-    setFileList(files.map((f) => ({ name: f.name, size: f.size })));
+  const syncDisplayList = useCallback((entries: FileEntry[]) => {
+    setFileList(
+      entries.map((e) => ({
+        name: e.file.name,
+        size: e.file.size,
+        path: e.path,
+      })),
+    );
   }, []);
 
   const mergeFiles = useCallback(
     (incoming: FileList | null) => {
       if (!incoming) return;
-      const existing = new Set(filesRef.current.map((f) => f.name));
+      const existing = new Set(filesRef.current.map((e) => e.path));
       const rejected: string[] = [];
 
       Array.from(incoming).forEach((f) => {
-        if (f.size === 0 || existing.has(f.name)) return;
+        const path = getFilePath(f);
+        if (f.size === 0 || existing.has(path)) return;
         if (f.size > MAX_FILE_SIZE) {
-          rejected.push(`"${f.name}" (${formatBytes(f.size)})`);
+          rejected.push(`"${path}" (${formatBytes(f.size)})`);
           return;
         }
-        filesRef.current.push(f);
-        existing.add(f.name);
+        filesRef.current.push({ file: f, path });
+        existing.add(path);
       });
 
       syncDisplayList(filesRef.current);
@@ -235,7 +236,7 @@ export function UploadForm({ areas }: { areas: Area[] }) {
       // Also sync the live DOM input if mounted
       if (fileInputRef.current) {
         const dt = new DataTransfer();
-        filesRef.current.forEach((f) => dt.items.add(f));
+        filesRef.current.forEach((e) => dt.items.add(e.file));
         fileInputRef.current.files = dt.files;
       }
     },
@@ -243,12 +244,12 @@ export function UploadForm({ areas }: { areas: Area[] }) {
   );
 
   const removeFile = useCallback(
-    (name: string) => {
-      filesRef.current = filesRef.current.filter((f) => f.name !== name);
+    (path: string) => {
+      filesRef.current = filesRef.current.filter((e) => e.path !== path);
       syncDisplayList(filesRef.current);
       if (fileInputRef.current) {
         const dt = new DataTransfer();
-        filesRef.current.forEach((f) => dt.items.add(f));
+        filesRef.current.forEach((e) => dt.items.add(e.file));
         fileInputRef.current.files = dt.files;
       }
     },
@@ -301,13 +302,8 @@ export function UploadForm({ areas }: { areas: Area[] }) {
   // ── Co-author search (debounced) ──────────────────────────────────────
   useEffect(() => {
     const q = coauthorQuery.trim();
-    if (q.length < 2) {
-      setCoauthorResults([]);
-      setCoauthorLoading(false);
-      return;
-    }
+    if (q.length < 2) return;
 
-    setCoauthorLoading(true);
     const timer = setTimeout(async () => {
       try {
         const results = await searchCoAuthors(q);
@@ -321,6 +317,16 @@ export function UploadForm({ areas }: { areas: Area[] }) {
 
     return () => clearTimeout(timer);
   }, [coauthorQuery, coauthors]);
+
+  function handleCoauthorQueryChange(value: string) {
+    setCoauthorQuery(value);
+    if (value.trim().length < 2) {
+      setCoauthorResults([]);
+      setCoauthorLoading(false);
+    } else {
+      setCoauthorLoading(true);
+    }
+  }
 
   function addCoauthor(user: CoAuthor) {
     setCoauthors((prev) =>
@@ -601,7 +607,7 @@ export function UploadForm({ areas }: { areas: Area[] }) {
             </Label>
             <Input
               value={coauthorQuery}
-              onChange={(e) => setCoauthorQuery(e.target.value)}
+              onChange={(e) => handleCoauthorQueryChange(e.target.value)}
               placeholder="Busca por nombre o correo para añadir coautores…"
               maxLength={120}
             />
@@ -681,7 +687,7 @@ export function UploadForm({ areas }: { areas: Area[] }) {
               </p>
             </div>
             <p className="text-xs text-muted-foreground">
-              PDF, Word, Excel, PowerPoint, ZIP, imágenes, texto
+              Cualquier tipo de archivo: código, documentos, imágenes, etc.
             </p>
           </div>
 
@@ -690,10 +696,36 @@ export function UploadForm({ areas }: { areas: Area[] }) {
             ref={fileInputRef}
             type="file"
             multiple
-            accept={ALLOWED_EXTENSIONS.join(",")}
             className="sr-only"
             onChange={(e) => mergeFiles(e.target.files)}
           />
+
+          {/* Folder input — permite seleccionar una carpeta completa */}
+          <input
+            ref={folderInputRef}
+            type="file"
+            multiple
+            className="sr-only"
+            onChange={(e) => {
+              mergeFiles(e.target.files);
+              e.target.value = "";
+            }}
+            {...({
+              webkitdirectory: "",
+            } as React.InputHTMLAttributes<HTMLInputElement>)}
+          />
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => folderInputRef.current?.click()}
+            >
+              <FolderOpen className="mr-1.5 h-4 w-4" />
+              Seleccionar carpeta
+            </Button>
+          </div>
 
           {fileList.length > 0 && (
             <div className="space-y-2">
@@ -719,11 +751,11 @@ export function UploadForm({ areas }: { areas: Area[] }) {
                 </p>
               )}
               {fileList.map((f) => (
-                <Card key={f.name} className="py-0">
+                <Card key={f.path} className="py-0">
                   <CardContent className="flex items-center gap-3 p-3">
                     <File className="h-5 w-5 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{f.name}</p>
+                      <p className="truncate text-sm font-medium">{f.path}</p>
                       <p className="text-xs text-muted-foreground">
                         {formatBytes(f.size)}
                       </p>
@@ -733,7 +765,7 @@ export function UploadForm({ areas }: { areas: Area[] }) {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 shrink-0"
-                      onClick={() => removeFile(f.name)}
+                      onClick={() => removeFile(f.path)}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -806,11 +838,19 @@ export function UploadForm({ areas }: { areas: Area[] }) {
             ref={(el) => {
               if (el && filesRef.current.length > 0) {
                 const dt = new DataTransfer();
-                filesRef.current.forEach((f) => dt.items.add(f));
+                filesRef.current.forEach((e) => dt.items.add(e.file));
                 el.files = dt.files;
               }
             }}
           />
+          {fileList.map((f, i) => (
+            <input
+              key={`path-${i}`}
+              type="hidden"
+              name="paths"
+              value={f.path}
+            />
+          ))}
 
           <div className="rounded-xl border bg-muted/30 p-5 space-y-3 mb-6">
             {coverPreview && (
