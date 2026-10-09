@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   Eye,
-  FileText,
   Calendar,
   Tag,
   User,
@@ -27,6 +26,7 @@ import {
   CommentsSection,
   type CommentWithReplies,
 } from "@/components/projects/comments-section";
+import { FileTree } from "@/components/projects/file-tree";
 import { ProjectReactions } from "@/components/projects/project-reactions";
 import { FollowButton } from "@/components/follows/follow-button";
 import { BookmarkButton } from "@/components/projects/bookmark-button";
@@ -133,16 +133,6 @@ const commentSelect = {
     },
   },
 };
-
-function FileIcon() {
-  return <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />;
-}
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export default async function ProjectPage({
   params,
@@ -319,7 +309,7 @@ export default async function ProjectPage({
                 src={project.coverImage}
                 alt={`Portada de ${project.title}`}
                 fill
-                className="object-cover"
+                className="object-contain"
                 priority
               />
             )}
@@ -404,55 +394,7 @@ export default async function ProjectPage({
                   </a>
                 </Button>
               </div>
-              <div className="space-y-2">
-                {project.files.map((f) => (
-                  <div
-                    key={f.id}
-                    className="flex items-center gap-3 rounded-lg border bg-card p-3"
-                  >
-                    <FileIcon />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{f.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatBytes(f.size)} · {f.mimeType}
-                      </p>
-                    </div>
-                    {(f.githubPath || f.blobUrl) && (
-                      <div className="flex shrink-0 items-center gap-1">
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="sm"
-                          className="h-8"
-                        >
-                          <a
-                            href={`/api/projects/${project.id}/files/${f.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Eye className="mr-1.5 h-3.5 w-3.5" />
-                            Ver
-                          </a>
-                        </Button>
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                        >
-                          <a
-                            href={`/api/projects/${project.id}/files/${f.id}?download=1`}
-                            title="Descargar"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            <span className="sr-only">Descargar</span>
-                          </a>
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <FileTree files={project.files} projectId={project.id} />
             </section>
           )}
 

@@ -286,7 +286,7 @@ export default async function Home() {
                           src={project.coverImage}
                           alt={project.title}
                           fill
-                          className="object-cover transition-transform group-hover:scale-105"
+                          className="object-contain"
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">

@@ -36,8 +36,10 @@ const TYPE_LABELS: Record<string, string> = {
 
 const TYPE_COLORS: Record<string, string> = {
   THESIS: "bg-primary/10 text-primary border-primary/20",
-  RESEARCH: "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400",
-  CLASSROOM: "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400",
+  RESEARCH:
+    "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400",
+  CLASSROOM:
+    "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400",
 };
 
 const PAGE_SIZE = 12;
@@ -68,8 +70,15 @@ async function ProjectsFeed({ searchParams }: { searchParams: SearchParams }) {
     ...(searchParams.q
       ? {
           OR: [
-            { title: { contains: searchParams.q, mode: "insensitive" as const } },
-            { abstract: { contains: searchParams.q, mode: "insensitive" as const } },
+            {
+              title: { contains: searchParams.q, mode: "insensitive" as const },
+            },
+            {
+              abstract: {
+                contains: searchParams.q,
+                mode: "insensitive" as const,
+              },
+            },
             { keywords: { has: searchParams.q.toLowerCase() } },
           ],
         }
@@ -124,7 +133,8 @@ async function ProjectsFeed({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        {total} proyecto{total !== 1 ? "s" : ""} encontrado{total !== 1 ? "s" : ""}
+        {total} proyecto{total !== 1 ? "s" : ""} encontrado
+        {total !== 1 ? "s" : ""}
       </p>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -140,7 +150,7 @@ async function ProjectsFeed({ searchParams }: { searchParams: SearchParams }) {
                 <img
                   src={p.coverImage}
                   alt=""
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
               )}
               <div className="absolute left-3 top-3">
@@ -148,7 +158,7 @@ async function ProjectsFeed({ searchParams }: { searchParams: SearchParams }) {
                   className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold shadow-sm backdrop-blur-sm ${
                     p.coverImage
                       ? "border-white/30 bg-black/50 text-white"
-                      : TYPE_COLORS[p.type] ?? ""
+                      : (TYPE_COLORS[p.type] ?? "")
                   }`}
                 >
                   {TYPE_LABELS[p.type]}
@@ -161,7 +171,11 @@ async function ProjectsFeed({ searchParams }: { searchParams: SearchParams }) {
                 <Link href={`/projects/${p.id}`}>{p.title}</Link>
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                {p.authors.map((a) => a.user.name).filter(Boolean).join(", ")} · {p.year}
+                {p.authors
+                  .map((a) => a.user.name)
+                  .filter(Boolean)
+                  .join(", ")}{" "}
+                · {p.year}
               </p>
             </CardHeader>
 
@@ -200,7 +214,9 @@ async function ProjectsFeed({ searchParams }: { searchParams: SearchParams }) {
                     <GitBranch className="h-3.5 w-3.5" />
                   </Link>
                 )}
-                <span className="text-muted-foreground/60">{p.area.name.split(" ").slice(0, 2).join(" ")}</span>
+                <span className="text-muted-foreground/60">
+                  {p.area.name.split(" ").slice(0, 2).join(" ")}
+                </span>
               </div>
             </CardFooter>
           </Card>
@@ -270,14 +286,20 @@ export default async function ProjectsPage({
   ]);
 
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: currentYear - 2009 }, (_, i) => currentYear - i);
+  const years = Array.from(
+    { length: currentYear - 2009 },
+    (_, i) => currentYear - i,
+  );
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">Proyectos académicos</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Proyectos académicos
+        </h1>
         <p className="mt-1 text-muted-foreground">
-          Repositorio de tesis, investigaciones y proyectos de la Universidad Popular del Cesar
+          Repositorio de tesis, investigaciones y proyectos de la Universidad
+          Popular del Cesar
         </p>
       </div>
 
@@ -292,7 +314,10 @@ export default async function ProjectsPage({
       ) : null}
 
       {/* Filters */}
-      <form method="GET" className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end">
+      <form
+        method="GET"
+        className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end"
+      >
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

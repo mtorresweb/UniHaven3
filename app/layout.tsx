@@ -49,6 +49,7 @@ export default async function RootLayout({
   return (
     <html
       lang="es"
+      suppressHydrationWarning
       className={`${plusJakartaSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
@@ -56,11 +57,11 @@ export default async function RootLayout({
           <Navbar />
           <main className="flex-1">{children}</main>
           <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Universidad Popular del Cesar · UniHaven
+            © {new Date().getFullYear()} Universidad Popular del Cesar ·
+            UniHaven
           </footer>
         </Providers>
       </body>
     </html>
   );
 }
-
